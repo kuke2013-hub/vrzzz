@@ -7,12 +7,47 @@ or restored even though Pages serves only the latest version.
 
 | Version | Release | Changes | Source |
 | --- | --- | --- | --- |
+| **9.0** | 2 Nov 2026 | **Pull or push Zelda with the vertical axis of EITHER thumbstick**, both when gripping and when not gripping. Back pulls Zelda toward you; forward sends her farther away. The headset stays still. Preserves two-hand scale, right wrist pitch/roll and horizontal stick turning. | [Model-depth implementation](https://github.com/kuke2013-hub/vrzzz/commit/c365346c1b3835d631fcc3b39068b751a9c019aa) |
 | **8.0** | 2 Nov 2026 | **Right-hand wrist pitch UP/DOWN added** during two-hand resize, alongside existing left/right roll. Changes use controller-local two-axis rotation with hand-line swing and 30° joystick turns preserved. Version number is prominent in the main heading; includes a [version-specific entry page](https://kuke2013-hub.github.io/vrzzz/v8.html) for cached-home-page situations. | [Pitch + roll implementation](https://github.com/kuke2013-hub/vrzzz/commit/04a2e28bc02741fabd19375cc6f37416465fe14b) |
 | **7.0** | 2 Nov 2026 | **Two-hand resize + right-wrist twist simultaneously.** Preserve the line-between-hands swing, track wrist roll from the *right* controller as the priority source, and compose both into the model transform. Right thumbstick 30° rotations remain in the combined frame. | [Two-hand twist implementation](https://github.com/kuke2013-hub/vrzzz/commit/7f7e01ab1423d2e4b118ab950ac9feb91cf0bbb4) |
 | **6.0** | 2 Nov 2026 | **Fix wrist-axis mismatch after repeated 30° model turns.** Joystick yaw is converted into the active controller's *grab-relative* orientation. Both one-hand grabbing and two-hand scaling retain wrist/hand alignment. No gravity or visible floor. | [Rotation fix commit](https://github.com/kuke2013-hub/vrzzz/commit/f7e7e23b8cfe3d26fb8cea4387621067076349de) |
 | **5.0** | 2 Nov 2026 | Forward/back walking preserved on **either** thumbstick while its grip is holding Zelda; release freezes Zelda in mid-air; no floor collider. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/f72ec911814adb42617127404df583be77a31094) |
 | **4.0** | 2 Nov 2026 | Holding Zelda redirects the held controller's horizontal thumbstick to 30° model yaw rather than locomotion/view turning. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/4596c17769876a42a6d2c2aaf76044d3e9391b86) |
 | **3.0** | 2 Nov 2026 | Pure passthrough, grip pickup, two-hand resizing and the original physics experiment. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/f71ca02048d36d3990d5c10fcf42c65f79e81ce3) |
+
+## Version 9.0 — reverse thumbstick depth to pull Zelda
+
+**Either stick back (Y positive) pulls Zelda toward the headset; either stick
+forward (Y negative) moves Zelda away.** This works regardless of whether the
+left, right, both or neither grip buttons are held.
+
+The app obtains the current headset position in world coordinates, finds
+the line from the headset toward Zelda, and updates Zelda's distance along
+that line at up to 1.4m/s, clamped to 0.6–12m. The locomotion rig is never
+translated by a vertical stick input.
+
+While a grip is active, a world-space `depthOffset` is added *after* the
+one-hand or two-hand controller transform on every frame. This ensures
+pulling/pushing works simultaneously with hand-following, right-wrist
+pitch/roll, two-hand scaling and 30° thumbstick yaw, without snapping back.
+When switching from one grip to two or vice versa, the already-moved model
+pose is made the new baseline and the offset resets to zero. With no grip
+active, the fixed model body and rendered group are both translated directly.
+
+When both sticks are used vertically at once, the larger deflection is
+selected (right wins exact ties) instead of adding movements. Horizontal
+controls remain as before: unheld left X strafes, unheld right X snap-turns
+the viewpoint, and held-hand X rotates Zelda by 30° steps.
+
+**Version-specific address:**
+https://kuke2013-hub.github.io/vrzzz/v9.html
+
+### Verification boundary
+
+The updated JavaScript and input routing can be source-tested and the depth
+math tested with synthetic headset/character positions. Actual controller
+input, model tracking and the live Pages deployment still require verification
+on Meta Quest 3.
 
 ## Version 8.0 — add wrist pitch while resizing
 
