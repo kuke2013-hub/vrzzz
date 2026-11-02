@@ -10,6 +10,9 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
 
   let body = null, baseHalf = new THREE.Vector3(0.84,0.40,0.62);
   let objectScale = 1, accumulator = 0, heldMode = 'none';
+  // Model-independent start/reset pose. Never force the original model's yaw.
+  const initialPosition = new THREE.Vector3();
+  const initialQuaternion = new THREE.Quaternion();
   // VR Objects baseline: preserve v13 linear two-hand resize control.
   // User requested linear two-hand resize limits: 10% to 350%.
   const MIN_SCALE = 0.10, MAX_SCALE = 3.50;
@@ -366,8 +369,9 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     baseHalf.copy(size).multiplyScalar(0.5);
     objectScale=1;
     modelAnchor.scale.setScalar(1);
-    modelAnchor.position.set(0,baseHalf.y,-2.0);
-    modelAnchor.quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),-Math.PI/2);
+    // app.js chooses the starting pose for each imported object.
+    initialPosition.copy(modelAnchor.position);
+    initialQuaternion.copy(modelAnchor.quaternion);
     localBox.min.copy(baseHalf).multiplyScalar(-1);
     localBox.max.copy(baseHalf);
     const p=modelAnchor.position,q=modelAnchor.quaternion;
@@ -398,8 +402,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     depthOffset.set(0,0,0);
     if(!body)return;
     changeScale(1);
-    modelAnchor.position.set(0,baseHalf.y,-2);
-    modelAnchor.quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),-Math.PI/2);
+    modelAnchor.position.copy(initialPosition);
+    modelAnchor.quaternion.copy(initialQuaternion);
     body.setTranslation(modelAnchor.position,true);
     body.setRotation(modelAnchor.quaternion,true);
     body.setLinvel({x:0,y:0,z:0},true);

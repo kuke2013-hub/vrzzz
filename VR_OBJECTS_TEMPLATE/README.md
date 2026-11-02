@@ -6,8 +6,9 @@ This folder is the **reusable, model-independent environment** extracted from
 [`362e97ff29d42641981c0cb0f8672b3a89db3fc0`](https://github.com/kuke2013-hub/vrzzz/commit/362e97ff29d42641981c0cb0f8672b3a89db3fc0)).
 
 **No Zelda mesh, model files, or built-in demo model is included.**
-The controller/physics module copies the v13 control algorithms, with only
-Zelda-specific wording removed. The original Zelda app remains unchanged.
+The controller/physics module preserves the v13 controller algorithms,
+with model-specific wording and the original character's forced initial
+orientation/reset replaced by a generic per-object spawn pose. The original Zelda app remains unchanged.
 
 ## Files
 
