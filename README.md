@@ -1,6 +1,6 @@
 # Zelda · Quest 3 mixed reality
 
-**Current version: 10.1 — Restored linear two-hand resizing (10%–350%), with all Version 10 controls retained.** [See version history](VERSIONS.md).
+**Current version: 11.0 — Original 25%–350% linear two-hand resizing, with all Version 10 controls retained.** [See version history](VERSIONS.md).
 The app displays its current version beneath the title on the live page; each
 subsequent update should bump the displayed number and add a history entry.
 
@@ -24,7 +24,7 @@ including in mid-air or upside down. She does not fall, bounce, drift or spin.
 | Right thumbstick left/right | Turn viewpoint 30° | **Rotate Zelda 30° left/right**, not the viewpoint |
 | Side grip (squeeze button) | Grab Zelda when near or aiming at her | Keep Zelda attached to the hand |
 | Release last side grip | — | Freeze Zelda's exact position, scale and rotation |
-| Both grips simultaneously | — | Spread/close hands for **linear resize (10%–350%)** and use right-wrist pitch + roll |
+| Both grips simultaneously | — | Spread/close hands for **linear resize (25%–350%)** and use right-wrist pitch + roll |
 
 Right horizontal thumbstick movements rotate Zelda one **30° increment** per tilt while the right grip is held. Return
 the stick toward centre before each subsequent increment. The left horizontal thumbstick now translates Zelda sideways. Horizontal rotation and
@@ -33,7 +33,7 @@ stick axes operate Zelda's depth at all times, whether or not a grip is held.
 If both are active, the stronger stick deflection wins (right on equal strength),
 so they never double Zelda's travel speed.
 
-With two-hand grabbing, Zelda scales linearly from **10% to 350%** of the source size, based on relative hand separation.
+With two-hand grabbing, Zelda scales linearly from **25% to 350%** of the source size, based on relative hand separation.
 In **version 8.0**, the right controller has priority for both up/down wrist pitch (local X) and left/right wrist roll (local Z).
 The direction between the hands controls the model's overall swing; tilting
 the right wrist up/down supplies pitch, twisting around its pointing axis
@@ -58,7 +58,16 @@ is baked into the current grab-relative offset instead of being layered over
 the controller's live pose. Wrist twisting therefore stays aligned with the
 tracked controller after repeated snaps, while the other controls are retained.
 
-## Version 10.1: restored resizing range
+## Version 11.0: original resizing restrictions restored
+
+The working original limit is **25% minimum / 350% maximum**, with **linear**
+two-hand hand-spacing control. There is no fourth-power enlargement and no
+micro-dot or giant-building scaling. Right-wrist pitch/roll, thumbstick model
+movement, 30° right-hand model turns, passthrough and stationary release remain
+unchanged. The v10.1 intermediate release briefly used a 10% minimum; v11.0
+corrects it back to the original 25%.
+
+## Version 10.1: restored resizing range (historical)
 
 Two-hand resizing has reverted to the familiar **linear hand-spacing response**, now limited to **0.10×–3.50×** the original model. The extreme nonlinear scaling introduced in Version 10 was removed. All of the left-stick sideways translation, both-stick pull/push, right-stick rotations, two-hand right-wrist pitch/roll, and gravity-free release remain in place.
 
@@ -106,9 +115,9 @@ The horizontal left stick now moves Zelda left/right even while gripping. The ri
 
 The version is shown **in the main page heading, below it, and in the footer**.
 The main page is `index.html`; for Quest browsers still displaying an older
-cached home page, open the explicit [Version 10.1 page](v10-1.html) at
-`https://kuke2013-hub.github.io/vrzzz/v10-1.html`. Both current entry points load
-`app.js?v=10.1` and `physics-grab.js?v=10.1` after GitHub Pages publishes.
+cached home page, open the explicit [Version 11 page](v11.html) at
+`https://kuke2013-hub.github.io/vrzzz/v11.html`. Both current entry points load
+`app.js?v=11` and `physics-grab.js?v=11` after GitHub Pages publishes.
 A URL query string alone does not prove a new deploy has taken effect.
 
 The site is a static GitHub Pages app (branch `main`, directory `/(root)`).
