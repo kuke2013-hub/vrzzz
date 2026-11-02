@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGrabPhysics } from './physics-grab.js?v=5';
+import { createGrabPhysics } from './physics-grab.js?v=6';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
