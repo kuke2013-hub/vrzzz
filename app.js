@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGrabPhysics } from './physics-grab.js?v=6';
+import { createGrabPhysics } from './physics-grab.js?v=7';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -81,7 +81,7 @@ function placeLoadedModel(root) {
   modelAnchor.rotation.set(0,-Math.PI/2,0);
   modelAnchor.scale.setScalar(1);
   if(physics)physics.attachModel(modelSize);
-  setStatus('Zelda loaded at human scale. Passthrough has no rendered floor. Squeeze a side grip to grab; use both grips to resize.');
+  setStatus('Zelda loaded at human scale. Grab with both side grips to resize; twist your RIGHT wrist at the same time to roll the model.');
 }
 
 // GitHub transfer stores this Quest-optimised GLB as eight byte-exact binary parts.
@@ -125,8 +125,8 @@ $('assetFile').addEventListener('change', (event) => {
   else setStatus('Select the extracted .glb file (not the .zip).');
 });
 
-// Floor exists ONLY in the Rapier physics world (y=0). The Three.js scene
-// deliberately renders no floor, no grid, no ring, and no shadow catcher.
+// Gravity-free scene: no visible floor, no invisible collision floor,
+// no grid, no ring and no shadow catcher. Released Zelda remains fixed.
 
 // Controllers and their side-grip events are registered in physics-grab.js.
 const keys = new Set();
