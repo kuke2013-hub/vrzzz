@@ -1,0 +1,231 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = (id) => document.getElementById(id);
+const setStatus = (message) => { $('status').textContent = message; };
+const stage = $('scene');
+const scene = new THREE.Scene(); // Null background is mandatory: AR uses transparent compositing.
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, powerPreference:'high-performance'});
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.setClearColor(0x000000, 0);
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+renderer.xr.enabled = true;
+renderer.xr.setReferenceSpaceType('local-floor'); // All dimensions and controller movement are real metres.
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.appendChild(renderer.domElement);
+
+const rig = new THREE.Group(); scene.add(rig);
+const camera = new THREE.PerspectiveCamera(65, innerWidth / innerHeight, 0.01, 100);
+camera.position.set(0, 1.65, 2.65);
+rig.add(camera);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0.75, -1.85);
+controls.enableDamping = true;
+controls.minDistance = .65;
+controls.maxDistance = 12;
+controls.maxPolarAngle = Math.PI * .55;
+controls.update();
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x859ba3, 2.0));
+const key = new THREE.DirectionalLight(0xfff5e6, 2.1);
+key.position.set(-2, 4.7, 2.5);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.left = -5; key.shadow.camera.right = 5;
+key.shadow.camera.top = 5; key.shadow.camera.bottom = -5;
+key.shadow.normalBias = .02;
+scene.add(key);
+
+// The model is crouched, not standing: its original extents are approximately
+// 1.67m long, 0.80m high and 1.23m wide. Do NOT stretch it to 1.7m tall.
+// The user requested human scale, not a standing pose or animation.
+const modelAnchor = new THREE.Group();
+modelAnchor.position.set(0, 0, -2.0);
+modelAnchor.rotation.y = -Math.PI / 2; // Turn the character's head (+X) toward the user (+Z).
+scene.add(modelAnchor);
+let avatar = null;
+const loader = new GLTFLoader();
+function placeLoadedModel(root) {
+  if (avatar) modelAnchor.remove(avatar);
+  avatar = root;
+  const rawBounds = new THREE.Box3().setFromObject(root);
+  const rawSize = rawBounds.getSize(new THREE.Vector3());
+  const humanLength = rawSize.x; // The supplied mesh is an approximately human-length crouched pose.
+  const scale = humanLength > .001 ? THREE.MathUtils.clamp(1.67 / humanLength, .3, 4) : 1;
+  root.scale.multiplyScalar(scale);
+  root.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(root);
+  const centre = bounds.getCenter(new THREE.Vector3());
+  root.position.x -= centre.x;
+  root.position.z -= centre.z;
+  root.position.y -= bounds.min.y;
+  root.traverse((part) => {if (part.isMesh) {part.castShadow = true; part.receiveShadow = true;}});
+  modelAnchor.add(root);
+  setStatus(`Zelda loaded · ${rawSize.x.toFixed(2)}m pose length · ${rawSize.y.toFixed(2)}m height · floor aligned. Open Quest Browser to enter passthrough.`);
+}
+function loadURL(url, revoke = false) {
+  setStatus('Loading Zelda model and embedded textures…');
+  loader.load(url, (gltf) => {placeLoadedModel(gltf.scene); if(revoke) URL.revokeObjectURL(url);},
+    (event) => {if(event.total) setStatus(`Loading Zelda… ${Math.round(event.loaded / event.total * 100)}%`);},
+    (error) => {if(revoke) URL.revokeObjectURL(url); console.error(error); setStatus('Model not found at assets/zelda.glb. Upload that GLB to the repository, or choose a local GLB below.');});
+}
+loadURL('./assets/zelda.glb');
+$('assetFile').addEventListener('change', (event) => {
+  const file = event.target.files?.[0];
+  if (file && /\.glb$/i.test(file.name)) loadURL(URL.createObjectURL(file), true);
+  else setStatus('Select the extracted .glb file (not the .zip).');
+});
+
+const floorGroup = new THREE.Group();
+scene.add(floorGroup);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(6, 6),
+  new THREE.MeshBasicMaterial({color:0xb1cecf, transparent:true, opacity:.085, side:THREE.DoubleSide, depthWrite:false}));
+floor.rotation.x = -Math.PI/2;
+floor.position.y = -.012;
+floorGroup.add(floor);
+const shadow = new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.ShadowMaterial({opacity:.28}));
+shadow.rotation.x=-Math.PI/2; shadow.position.y=.006; shadow.receiveShadow=true;
+floorGroup.add(shadow);
+const grid = new THREE.GridHelper(6, 24, 0x76d6ca, 0x6c9e9c);
+grid.position.y = -.004;
+Array.isArray(grid.material) ? grid.material.forEach(m=>{m.transparent=true;m.opacity=.18;m.depthWrite=false;}) : (grid.material.transparent=true,grid.material.opacity=.18,grid.material.depthWrite=false);
+floorGroup.add(grid);
+const ring = new THREE.Mesh(new THREE.RingGeometry(1.25,1.266,128),
+  new THREE.MeshBasicMaterial({color:0x75dac4,side:THREE.DoubleSide,transparent:true,opacity:.45,depthWrite:false}));
+ring.rotation.x=-Math.PI/2;ring.position.set(0,.008,-2);floorGroup.add(ring);
+$('floor').addEventListener('click',()=>{floorGroup.visible=!floorGroup.visible;$('floor').textContent=`Floor: ${floorGroup.visible?'on':'off'}`;});
+
+// Two controller models are parented to the locomotion rig, as in london-flat-vr.
+for(let i=0;i<2;i++){
+  const c=renderer.xr.getController(i);rig.add(c);
+  const pointer=new THREE.Mesh(new THREE.CylinderGeometry(.005,.005,.28,7),
+    new THREE.MeshBasicMaterial({color:i?0xb7d4fd:0x86e8d4,transparent:true,opacity:.45}));
+  pointer.rotation.x=Math.PI/2;pointer.position.z=-.16;c.add(pointer);
+}
+const keys = new Set();
+window.addEventListener('keydown', e => {keys.add(e.code); if(e.code.startsWith('Arrow'))e.preventDefault();});
+window.addEventListener('keyup', e => keys.delete(e.code));
+window.addEventListener('blur', () => keys.clear());
+const xrForward=new THREE.Vector3(),xrRight=new THREE.Vector3();
+const xrHeadOrientation=new THREE.Quaternion(),xrRigOrientation=new THREE.Quaternion();
+const xrLocalHead=new THREE.Vector3(),xrPivotBefore=new THREE.Vector3(),xrPivotAfter=new THREE.Vector3();
+const UP=new THREE.Vector3(0,1,0);
+let snapTurnReady=true;
+const HOME={x:0,z:0};
+function activeStick(gamepad) {
+  const axes=gamepad.axes||[];
+  const pair=(x,y)=>Number.isFinite(axes[x])&&Number.isFinite(axes[y])?{x:axes[x],y:axes[y]}:null;
+  const main=pair(2,3),fallback=pair(0,1);
+  if(main&&(Math.abs(main.x)>.12||Math.abs(main.y)>.12)) return main;
+  if(fallback&&(Math.abs(fallback.x)>.12||Math.abs(fallback.y)>.12))return fallback;
+  return main||fallback||{x:0,y:0};
+}
+function snapTurn(direction, viewerPose){
+  // Preserve physical head position when rotating the locomotion rig.
+  const pos=viewerPose.transform.position;
+  xrLocalHead.set(pos.x,pos.y,pos.z);
+  rig.updateMatrixWorld(true);
+  xrPivotBefore.copy(xrLocalHead);rig.localToWorld(xrPivotBefore);
+  rig.rotation.y-=direction*THREE.MathUtils.degToRad(30);
+  rig.updateMatrixWorld(true);
+  xrPivotAfter.copy(xrLocalHead);rig.localToWorld(xrPivotAfter);
+  rig.position.x+=xrPivotBefore.x-xrPivotAfter.x;
+  rig.position.z+=xrPivotBefore.z-xrPivotAfter.z;
+}
+function updateXR(dt, frame){
+  const session=renderer.xr.getSession();
+  const space=renderer.xr.getReferenceSpace();
+  const pose=frame&&space?frame.getViewerPose(space):null;
+  if(!session||!pose)return;
+  let left=null,right=null;
+  for(const source of session.inputSources){
+    if(!source.gamepad)continue;
+    const stick=activeStick(source.gamepad);
+    if(source.handedness==='left') left=stick;
+    if(source.handedness==='right') right=stick;
+  }
+  if(right){
+    if(Math.abs(right.x)<.30) snapTurnReady=true;
+    if(snapTurnReady&&Math.abs(right.x)>.70){snapTurn(right.x>0?1:-1,pose);snapTurnReady=false;}
+  }
+  if(!left)return;
+  const side=Math.abs(left.x)>.16?left.x:0;
+  const along=Math.abs(left.y)>.16?left.y:0;
+  if(!side&&!along)return;
+  const o=pose.transform.orientation;
+  xrHeadOrientation.set(o.x,o.y,o.z,o.w);
+  rig.getWorldQuaternion(xrRigOrientation);
+  xrHeadOrientation.premultiply(xrRigOrientation);
+  xrForward.set(0,0,-1).applyQuaternion(xrHeadOrientation);xrForward.y=0;
+  if(xrForward.lengthSq()<.00001)return;
+  xrForward.normalize();xrRight.crossVectors(xrForward,UP).normalize();
+  // X+ strafe right; Y- move forward, headset-relative including snap turns.
+  const speed=1.5*dt;
+  rig.position.x+=(-along*xrForward.x+side*xrRight.x)*speed;
+  rig.position.z+=(-along*xrForward.z+side*xrRight.z)*speed;
+}
+function updateDesktop(dt){
+  const forward=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0);
+  const strafe=(keys.has('KeyD')?1:0)-(keys.has('KeyA')?1:0);
+  const len=Math.hypot(forward,strafe);
+  if(!len)return;
+  const cameraForward=new THREE.Vector3();camera.getWorldDirection(cameraForward);cameraForward.y=0;cameraForward.normalize();
+  const cameraRight=new THREE.Vector3().crossVectors(cameraForward,UP).normalize();
+  const speed=(keys.has('ShiftLeft')?3:1.5)*dt/len;
+  rig.position.addScaledVector(cameraForward,forward*speed);
+  rig.position.addScaledVector(cameraRight,strafe*speed);
+  controls.target.addScaledVector(cameraForward,forward*speed);
+  controls.target.addScaledVector(cameraRight,strafe*speed);
+}
+function resetView(){
+  rig.position.set(HOME.x,0,HOME.z);rig.rotation.y=0;snapTurnReady=true;
+  if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
+  setStatus('View reset. Zelda is 2 metres ahead, aligned to the physical floor.');
+}
+$('reset').addEventListener('click',resetView);
+
+const enter=$('enterAR');
+let arSupported=false;
+if(!window.isSecureContext){enter.textContent='HTTPS REQUIRED';setStatus('Open the secure GitHub Pages URL, not a local file.');}
+else if(!navigator.xr){enter.textContent='OPEN ON QUEST 3';setStatus('Desktop preview is available. Passthrough requires Meta Quest Browser with WebXR AR support.');}
+else{
+  navigator.xr.isSessionSupported('immersive-ar').then(supported=>{
+    arSupported=supported;enter.disabled=!supported;
+    enter.textContent=supported?'ENTER PASSTHROUGH':'PASSTHROUGH UNAVAILABLE';
+    if(!supported)setStatus('This browser does not offer immersive-ar. Open the site in Meta Quest Browser and allow the required permissions.');
+  }).catch(error=>{enter.textContent='PASSTHROUGH CHECK FAILED';setStatus(error.message);});
+}
+enter.addEventListener('click',async()=>{
+  if(!arSupported)return;
+  enter.disabled=true;
+  try{
+    const session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['local-floor']});
+    await renderer.xr.setSession(session);
+    controls.enabled=false;
+    camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
+    enter.textContent='PASSTHROUGH ACTIVE';
+    setStatus('Mixed reality active. Left stick moves, right stick snap-turns.');
+  }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
+  finally{enter.disabled=false;}
+});
+renderer.xr.addEventListener('sessionend',()=>{
+  controls.enabled=true;
+  camera.position.set(0,1.65,2.65);
+  controls.target.set(0,.75,-1.85); controls.update();
+  enter.textContent='ENTER PASSTHROUGH';
+  setStatus('Passthrough session ended. Desktop preview active.');
+});
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+let previous=0;
+renderer.setAnimationLoop((time,frame)=>{
+  const dt=previous?Math.min(.05,(time-previous)/1000):0;
+  previous=time;
+  if(renderer.xr.isPresenting)updateXR(dt,frame);
+  else{updateDesktop(dt);controls.update();}
+  renderer.render(scene,camera);
+});
