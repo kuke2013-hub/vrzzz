@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGrabPhysics } from './physics-grab.js?v=12';
+import { createGrabPhysics } from './physics-grab.js?v=13';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -81,7 +81,7 @@ function placeLoadedModel(root) {
   modelAnchor.rotation.set(0,-Math.PI/2,0);
   modelAnchor.scale.setScalar(1);
   if(physics)physics.attachModel(modelSize);
-  setStatus('Zelda VR v12: aim and squeeze either controller, then physically move or twist Zelda from any visible distance.');
+  setStatus('Zelda VR v13: grab Zelda at any distance; moving your hand OR its pointing direction now moves Zelda up/down/left/right.');
 }
 
 // GitHub transfer stores this Quest-optimised GLB as eight byte-exact binary parts.
@@ -224,7 +224,7 @@ function resetView(){
   rig.position.set(HOME.x,0,HOME.z);rig.rotation.y=0;snapTurnReady=true;
   if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
   physics?.reset();
-  setStatus('Version 12.0 reset. Left X moves Zelda sideways, either Y pulls/pushes. Two-hand resizing is 10% to 350%.');
+  setStatus('Version 13.0 reset. Left X moves Zelda sideways, either Y pulls/pushes. Two-hand resizing is 10% to 350%.');
 }
 $('reset').addEventListener('click',resetView);
 
@@ -249,7 +249,7 @@ enter.addEventListener('click',async()=>{
     camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
     enter.textContent='PASSTHROUGH ACTIVE';
     physics?.releaseAll();
-    setStatus('Zelda VR v12: Left X moves Zelda sideways; either stick Y pulls/pushes. Both grips resize 10%–350%.');
+    setStatus('Zelda VR v13: point and squeeze, then move either controller or its aim to move distant Zelda in all directions.');
   }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
   finally{enter.disabled=false;}
 });
