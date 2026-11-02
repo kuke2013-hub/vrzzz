@@ -7,6 +7,7 @@ or restored even though Pages serves only the latest version.
 
 | Version | Release | Changes | Source |
 | --- | --- | --- | --- |
+| **10.0** | 2 Nov 2026 | **Extreme fourth-power two-hand scaling** from 0.00001× (dot) to 10,000× (landmark). Left-stick X translates Zelda sideways instead of moving the player or turning Zelda. Wider camera/depth ranges; no oversized Rapier collider. | [Scaling and joystick implementation](https://github.com/kuke2013-hub/vrzzz/commit/c10e6c1ee52b6e756ca4cf37447e03629a486103) |
 | **9.0** | 2 Nov 2026 | **Pull or push Zelda with the vertical axis of EITHER thumbstick**, both when gripping and when not gripping. Back pulls Zelda toward you; forward sends her farther away. The headset stays still. Preserves two-hand scale, right wrist pitch/roll and horizontal stick turning. | [Model-depth implementation](https://github.com/kuke2013-hub/vrzzz/commit/c365346c1b3835d631fcc3b39068b751a9c019aa) |
 | **8.0** | 2 Nov 2026 | **Right-hand wrist pitch UP/DOWN added** during two-hand resize, alongside existing left/right roll. Changes use controller-local two-axis rotation with hand-line swing and 30° joystick turns preserved. Version number is prominent in the main heading; includes a [version-specific entry page](https://kuke2013-hub.github.io/vrzzz/v8.html) for cached-home-page situations. | [Pitch + roll implementation](https://github.com/kuke2013-hub/vrzzz/commit/04a2e28bc02741fabd19375cc6f37416465fe14b) |
 | **7.0** | 2 Nov 2026 | **Two-hand resize + right-wrist twist simultaneously.** Preserve the line-between-hands swing, track wrist roll from the *right* controller as the priority source, and compose both into the model transform. Right thumbstick 30° rotations remain in the combined frame. | [Two-hand twist implementation](https://github.com/kuke2013-hub/vrzzz/commit/7f7e01ab1423d2e4b118ab950ac9feb91cf0bbb4) |
@@ -14,6 +15,32 @@ or restored even though Pages serves only the latest version.
 | **5.0** | 2 Nov 2026 | Forward/back walking preserved on **either** thumbstick while its grip is holding Zelda; release freezes Zelda in mid-air; no floor collider. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/f72ec911814adb42617127404df583be77a31094) |
 | **4.0** | 2 Nov 2026 | Holding Zelda redirects the held controller's horizontal thumbstick to 30° model yaw rather than locomotion/view turning. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/4596c17769876a42a6d2c2aaf76044d3e9391b86) |
 | **3.0** | 2 Nov 2026 | Pure passthrough, grip pickup, two-hand resizing and the original physics experiment. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/f71ca02048d36d3990d5c10fcf42c65f79e81ce3) |
+
+## Version 10.0 — extreme size and sideways model controls
+
+The previous linear 0.25×–3.5× resizing limit has been replaced by
+a fourth-power relationship between the distance of the two grips and their
+distance when two-hand grabbing began. The model's effective size is clamped
+to **0.00001× to 10,000×** (one billion-fold total range). It is not literal
+infinity: renderers cannot represent zero, infinite or arbitrarily large
+sizes reliably. Re-gripping allows successive scale adjustments.
+
+The object is kept centred near its previous two-hand midpoint rather than
+multiplying its offset by the new size; that avoids sending it off into the
+distance while enlarging it. Fixed-body collision geometry has been removed
+because the environment already has no gravity or collisions. View and model
+depth ranges are extended to 50km, with faster push/pull for larger objects.
+
+The **left thumbstick horizontal axis now moves Zelda sideways**, left or
+right, relative to the user's gaze direction, regardless of which side-grip
+buttons are pressed. This replaces the previous left-stick strafing and
+left-grip 30° turning behaviours. Right-thumbstick horizontal turns remain
+unchanged: right grip held rotates Zelda 30°; right grip released rotates the
+viewpoint. Either vertical thumbstick still pulls/pushes Zelda.
+
+A [version-specific Quest entry page](https://kuke2013-hub.github.io/vrzzz/v10.html)
+helps avoid a stale cached home page. GitHub Pages publication and physical
+Quest control behaviour still require separate verification.
 
 ## Version 9.0 — reverse thumbstick depth to pull Zelda
 
