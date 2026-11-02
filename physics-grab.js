@@ -11,8 +11,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   let body = null, baseHalf = new THREE.Vector3(0.84,0.40,0.62);
   let objectScale = 1, accumulator = 0, heldMode = 'none';
   // Version 11.0: restore the original linear hand-distance resize control.
-  // User requested linear two-hand resize limits: 25% to 350%.
-  const MIN_SCALE = 0.25, MAX_SCALE = 3.50;
+  // User requested linear two-hand resize limits: 10% to 350%.
+  const MIN_SCALE = 0.10, MAX_SCALE = 3.50;
   const MODEL_SIDE_SPEED = 1.4;
   const localBox = new THREE.Box3();
   const handPos = new THREE.Vector3(), handQuat = new THREE.Quaternion();
@@ -205,7 +205,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hand.snapReady=true;
     if(activeHands().length===2) {
       beginTwo();
-      onStatus('Version 11.0: spread/close both hands to resize Zelda linearly from 25% to 350%. Right-wrist pitch/roll and joystick controls remain unchanged.');
+      onStatus('Version 11.0: spread/close both hands to resize Zelda linearly from 10% to 350%. Right-wrist pitch/roll and joystick controls remain unchanged.');
     } else {
       beginOne(hand);
       onStatus('Version 11.0: left stick X moves Zelda sideways; right held stick X rotates 30°. Either stick Y pulls/pushes Zelda.');
@@ -242,7 +242,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       mid.copy(pa).add(pb).multiplyScalar(0.5);
       const ratio=distance/twoStartDistance;
       // Linear spacing-to-size response (as before Version 10).
-      // Restrict scale to 25%-350% of normal size.
+      // Restrict scale to 10%-350% of normal size.
       changeScale(twoStartScale*ratio);
       targetQuat.copy(twoHandFrame).multiply(twoStartQuat);
       // At huge scales, multiplying this offset by scale would fling Zelda
