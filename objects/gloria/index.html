@@ -24,6 +24,13 @@
     .controls{display:flex;gap:8px;margin-top:9px}
     .controls button{flex:1;background:#233442;color:#e7f5f5;border:1px solid #ffffff2b;border-radius:9px;padding:10px 5px;cursor:pointer}
     #status{margin:12px 0 6px;color:#d3e1e8;font-size:12px;line-height:1.5;min-height:34px;overflow-wrap:anywhere}
+    #modelLoad{margin:9px 0;padding:11px 12px;border:1px solid #ffffff2b;border-radius:9px;background:#172733}
+    #modelLoad[hidden]{display:none}
+    #modelProgressText{color:#e5f8f5;font-size:13px;font-variant-numeric:tabular-nums;font-weight:650}
+    #modelProgress{display:block;width:100%;height:11px;margin-top:8px;accent-color:#86e8d4}
+    #modelLoad[data-state="error"]{border-color:#ed997d}
+    #modelLoad[data-state="error"] #modelProgressText{color:#ffb6a1}
+    #modelLoad[data-state="ready"]{border-color:#86e8d460}
     #filelabel{display:block;font-size:12px;color:#84d8c8;margin-top:8px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}#assetFile{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
     .hint{margin:11px 0 0;border-top:1px solid #ffffff20;padding-top:10px;color:#a3b9c8;font-size:12px;line-height:1.55}
     .kbd{border:1px solid #ffffff40;border-radius:4px;font-size:10px;padding:1px 4px;color:#e6f7fc}
@@ -41,6 +48,10 @@
     <div class="sub">Manipulate Gloria in mixed reality. Pure passthrough, no virtual floor, grid or gravity.</div>
     <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
     <div class="controls"><button id="reset" type="button">Reset view and object</button></div>
+    <div id="modelLoad" role="status" aria-live="polite" data-state="loading">
+      <div id="modelProgressText">Gloria · 0%</div>
+      <progress id="modelProgress" max="100" value="0" aria-label="Model download progress"></progress>
+    </div>
     <div id="status" role="status">Preparing Gloria scene…</div>
     <label id="filelabel" for="assetFile">Choose GLB, OBJ or FBX from device</label>
     <input id="assetFile" type="file" accept=".glb,.obj,.fbx,model/gltf-binary">
@@ -58,6 +69,6 @@
   </section>
   <div id="footer">GLORIA · Quest 3 passthrough · Shared controls v13</div>
   <script src="./config.js?v=gloria-1"></script>
-  <script type="module" src="../shared/app.js?v=shared-1"></script>
+  <script type="module" src="../shared/app.js?v=shared-2-progress"></script>
 </body>
 </html>

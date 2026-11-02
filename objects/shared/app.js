@@ -8,6 +8,31 @@ const OBJECT_CONFIG = window.VR_OBJECT_CONFIG || Object.freeze({modelUrl:null,fi
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
+const enter = $('enterAR');
+let arSupported = false, arChecked = false, modelReady = false, modelLoading = false, modelLoadFailed = false;
+let loadGeneration = 0;
+const setLoadProgress = (message, percent = null, state = 'loading') => {
+  const shell = $('modelLoad'), progress = $('modelProgress'), label = $('modelProgressText');
+  if (!shell) return;
+  shell.hidden = false;
+  shell.dataset.state = state;
+  if (label) label.textContent = message;
+  if (progress) {
+    if (percent === null) progress.removeAttribute('value');
+    else progress.value = Math.max(0, Math.min(100, percent));
+  }
+};
+function refreshEnterButton() {
+  if (renderer.xr.isPresenting) return;
+  enter.disabled = true;
+  if (!window.isSecureContext) enter.textContent = 'HTTPS REQUIRED';
+  else if (!navigator.xr) enter.textContent = 'OPEN ON QUEST 3';
+  else if (!arChecked) enter.textContent = 'CHECKING QUEST SUPPORT…';
+  else if (!arSupported) enter.textContent = 'PASSTHROUGH UNAVAILABLE';
+  else if (modelLoading) enter.textContent = 'LOADING MODEL…';
+  else if (!modelReady) enter.textContent = modelLoadFailed ? 'MODEL MISSING — CHOOSE GLB' : 'CHOOSE A MODEL FIRST';
+  else { enter.disabled = false; enter.textContent = 'ENTER PASSTHROUGH'; }
+}
 const stage = $('scene');
 const scene = new THREE.Scene(); // Transparency is required for passthrough.
 const renderer = new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
@@ -87,7 +112,10 @@ function installObject(root,label='Object') {
   modelAnchor.add(root);
   modelAnchor.scale.setScalar(1);
   modelAnchor.rotation.set(0,Number(OBJECT_CONFIG.initialYawRadians)||0,0);
-  modelAnchor.position.set(0,Math.max(0.4,Math.min(1.6,dimensions.y/2)),-2);
+  const configuredSpawnY = Number(OBJECT_CONFIG.spawnYMetres);
+  const spawnY = Number.isFinite(configuredSpawnY) && configuredSpawnY > 0
+    ? configuredSpawnY : Math.max(0.4,Math.min(1.6,dimensions.y/2));
+  modelAnchor.position.set(0,spawnY,-2);
   modelSize=dimensions;
   if(physics)physics.attachModel(modelSize);
   setStatus(label+' loaded. Aim at the object, squeeze a side grip and move or twist it. Other controls match VR v13.');
@@ -95,21 +123,60 @@ function installObject(root,label='Object') {
 function loadObject(url,filename) {
   const extension=(filename.split(/[?#]/)[0].split('.').pop()||'').toLowerCase();
   const revoke=url.startsWith('blob:');
-  const done=loaded=>{
-    try{installObject(loaded.scene||loaded,filename);}
-    catch(error){console.error(error);setStatus('Object import failed: '+error.message);}
-    finally{if(revoke)URL.revokeObjectURL(url);}
-  };
-  const failed=error=>{
+  const requestId=++loadGeneration;
+  modelReady=false;
+  modelLoading=true;
+  modelLoadFailed=false;
+  setLoadProgress(filename+' · 0%',0,'loading');
+  setStatus('Downloading '+filename+'… 0%');
+  refreshEnterButton();
+  const cleanup=()=>{if(revoke)URL.revokeObjectURL(url);};
+  const fail=(error)=>{
+    if(requestId!==loadGeneration){cleanup();return;}
     console.error('Object import failed',error);
-    setStatus('Could not load '+filename+'. The hosted model may still need uploading. Choose a local GLB below as a fallback.');
-    if(revoke)URL.revokeObjectURL(url);
+    modelLoading=false;
+    modelReady=false;
+    modelLoadFailed=true;
+    const status=Number(error?.target?.status)||Number(error?.status)||0;
+    const reason=status?'HTTP '+status:(error?.message||'download or format error');
+    const detail=!revoke
+      ? 'The hosted model is missing or cannot be read ('+reason+'). Upload it to the configured assets path, or select a local GLB below.'
+      : 'The selected file could not be loaded ('+reason+'). Please select a valid self-contained GLB.';
+    setLoadProgress('Model unavailable · '+reason,null,'error');
+    setStatus(detail);
+    refreshEnterButton();
+    cleanup();
   };
-  setStatus('Loading '+filename+'…');
-  if(extension==='glb'||extension==='gltf')glbLoader.load(url,done,undefined,failed);
-  else if(extension==='obj')objLoader.load(url,done,undefined,failed);
-  else if(extension==='fbx')fbxLoader.load(url,done,undefined,failed);
-  else failed(new Error('Unsupported extension '+extension+'. Convert to GLB.'));
+  const done=loaded=>{
+    if(requestId!==loadGeneration){cleanup();return;}
+    try {
+      installObject(loaded.scene||loaded,filename);
+      modelLoading=false;
+      modelReady=true;
+      modelLoadFailed=false;
+      setLoadProgress(filename+' · 100% · Ready',100,'ready');
+      refreshEnterButton();
+    } catch(error) { fail(error); return; }
+    cleanup();
+  };
+  const progress=event=>{
+    if(requestId!==loadGeneration||!modelLoading)return;
+    const loaded=Math.max(0,Number(event.loaded)||0);
+    const total=Number(event.total)||0;
+    if(total>0){
+      // 99% is the download cap; 100% means the model is parsed and installed.
+      const pct=Math.min(99,Math.floor(100*loaded/total));
+      setLoadProgress(filename+' · '+pct+'%',pct,'loading');
+      setStatus('Downloading '+filename+'… '+pct+'%');
+    }else{
+      setLoadProgress(filename+' · '+Math.round(loaded/1024)+' KB received',null,'loading');
+      setStatus('Downloading '+filename+'…');
+    }
+  };
+  if(extension==='glb'||extension==='gltf')glbLoader.load(url,done,progress,fail);
+  else if(extension==='obj')objLoader.load(url,done,progress,fail);
+  else if(extension==='fbx')fbxLoader.load(url,done,progress,fail);
+  else fail(new Error('Unsupported extension '+extension+'. Convert to GLB.'));
 }
 const initialModel=OBJECT_CONFIG.modelUrl;
 if(typeof initialModel==='string'&&initialModel.trim()){
@@ -230,19 +297,24 @@ function resetView(){
 }
 $('reset').addEventListener('click',resetView);
 
-const enter=$('enterAR');
-let arSupported=false;
-if(!window.isSecureContext){enter.textContent='HTTPS REQUIRED';setStatus('Open the secure GitHub Pages URL, not a local file.');}
-else if(!navigator.xr){enter.textContent='OPEN ON QUEST 3';setStatus('Desktop preview is available. Passthrough requires Meta Quest Browser with WebXR AR support.');}
+if(!window.isSecureContext){setStatus('Open the secure GitHub Pages URL, not a local file.');}
+else if(!navigator.xr){setStatus('Desktop preview is available. Passthrough requires Meta Quest Browser with WebXR AR support.');}
 else{
   navigator.xr.isSessionSupported('immersive-ar').then(supported=>{
-    arSupported=supported;enter.disabled=!supported;
-    enter.textContent=supported?'ENTER PASSTHROUGH':'PASSTHROUGH UNAVAILABLE';
+    arChecked=true;
+    arSupported=supported;
+    refreshEnterButton();
     if(!supported)setStatus('This browser does not offer immersive-ar. Open the site in Meta Quest Browser and allow the required permissions.');
-  }).catch(error=>{enter.textContent='PASSTHROUGH CHECK FAILED';setStatus(error.message);});
+  }).catch(error=>{
+    arChecked=true;
+    arSupported=false;
+    refreshEnterButton();
+    setStatus('Passthrough check failed: '+error.message);
+  });
 }
+refreshEnterButton();
 enter.addEventListener('click',async()=>{
-  if(!arSupported)return;
+  if(!arSupported||!modelReady)return;
   enter.disabled=true;
   try{
     const session=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['local-floor']});
@@ -253,13 +325,13 @@ enter.addEventListener('click',async()=>{
     physics?.releaseAll();
     setStatus('VR Objects: point and squeeze, then move either controller or its aim to move distant object in all directions.');
   }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
-  finally{enter.disabled=false;}
+  finally{refreshEnterButton();}
 });
 renderer.xr.addEventListener('sessionend',()=>{
   controls.enabled=true;
   camera.position.set(0,1.65,2.65);
   controls.target.set(0,.75,-1.85); controls.update();
-  enter.textContent='ENTER PASSTHROUGH';
+  refreshEnterButton();
   setStatus('Passthrough session ended. Desktop preview active.');
 });
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});

@@ -3,5 +3,6 @@ window.VR_OBJECT_CONFIG = Object.freeze({
   modelUrl: './assets/gloria.glb',
   fitToView: true,
   targetLongestSideMetres: 1.67,
-  initialYawRadians: 0
+  initialYawRadians: 0,
+  spawnYMetres: 1.3
 });
