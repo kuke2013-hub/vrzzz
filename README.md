@@ -1,6 +1,6 @@
 # Zelda · Quest 3 mixed reality
 
-**Current version: 7.0 — Right-wrist twisting during two-hand resizing.** [See version history](VERSIONS.md).
+**Current version: 8.0 — Two-hand right-wrist pitch AND roll while resizing.** [See version history](VERSIONS.md).
 The app displays its current version beneath the title on the live page; each
 subsequent update should bump the displayed number and add a history entry.
 
@@ -24,7 +24,7 @@ including in mid-air or upside down. She does not fall, bounce, drift or spin.
 | Right thumbstick left/right | Turn viewpoint 30° | **Rotate Zelda 30° left/right**, not the viewpoint |
 | Side grip (squeeze button) | Grab Zelda when near or aiming at her | Keep Zelda attached to the hand |
 | Release last side grip | — | Freeze Zelda's exact position, scale and rotation |
-| Both grips simultaneously | — | Move hands apart/together to enlarge/shrink Zelda **while twisting the right wrist to roll the model** |
+| Both grips simultaneously | — | Spread/close hands to scale Zelda; pitch the **right wrist up/down** and roll it **left/right**, simultaneously |
 
 Horizontal stick movements rotate Zelda one **30° increment** per tilt. Return
 the stick toward centre before each subsequent increment. Horizontal rotation and
@@ -33,11 +33,13 @@ vertical stick axes are active, the stronger magnitude is used rather than
 doubling the walking speed.
 
 With two-hand grabbing, Zelda scales from **0.25× to 3.5×** the source size.
-In **version 7.0**, the right controller has priority for wrist twisting.
-The direction between the hands controls the model's overall swing; twisting
-the right wrist around its pointing axis supplies additional roll while the
-hand separation independently controls scale. This works during continuous
+In **version 8.0**, the right controller has priority for both up/down wrist pitch (local X) and left/right wrist roll (local Z).
+The direction between the hands controls the model's overall swing; tilting
+the right wrist up/down supplies pitch, twisting around its pointing axis
+supplies roll, and hand separation independently controls scale. This works during continuous
 size changes and while using the existing 30° thumbstick model rotations.
+A quaternion swing–twist decomposition excludes only local-Y wrist yaw to
+avoid double-counting the hand-line swing; it preserves the other two axes.
 The right hand is detected by the WebXR `handedness` field, not by controller
 enumeration order. Switching from one to two hands records a neutral twist
 reference to avoid a sudden jump; releasing one hand returns smoothly to the
@@ -56,6 +58,13 @@ the controller's live pose. Wrist twisting therefore stays aligned with the
 tracked controller after repeated snaps, while the other controls are retained.
 
 ## Publishing and implementation
+
+The version is shown **in the main page heading, below it, and in the footer**.
+The main page is `index.html`; for Quest browsers still displaying an older
+cached home page, open the explicit [Version 8 page](v8.html) at
+`https://kuke2013-hub.github.io/vrzzz/v8.html`. Both URLs load the same current
+`app.js?v=8` and `physics-grab.js?v=8` code after GitHub Pages publishes.
+The query string `?v=8` is not by itself proof that the published code updated.
 
 The site is a static GitHub Pages app (branch `main`, directory `/(root)`).
 It requires HTTPS, WebXR `immersive-ar` and the `local-floor` reference
