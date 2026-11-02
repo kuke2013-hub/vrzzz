@@ -27,6 +27,15 @@
       "description": "A textured character model in Quest 3 passthrough with the shared Zelda VR v13 controls and brightness adjustment.",
       "status": "ready",
       "created": "2026-11-02"
+    },
+    {
+      "id": "ellie-arrodillada",
+      "title": "Ellie Arrodillada",
+      "url": "./objects/ellie-arrodillada/",
+      "model": "./objects/ellie-arrodillada/assets/ellie-arrodillada.glb",
+      "description": "A textured kneeling character in Quest 3 passthrough, using the shared Zelda VR v13 controller system.",
+      "status": "pending-model-upload",
+      "created": "2026-11-02"
     }
   ]
 }
