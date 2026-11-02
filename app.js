@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGrabPhysics } from './physics-grab.js?v=8';
+import { createGrabPhysics } from './physics-grab.js?v=9';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -81,7 +81,7 @@ function placeLoadedModel(root) {
   modelAnchor.rotation.set(0,-Math.PI/2,0);
   modelAnchor.scale.setScalar(1);
   if(physics)physics.attachModel(modelSize);
-  setStatus('Zelda VR v8: Grab with both grips. Change hand spacing to resize; move RIGHT wrist up/down to pitch and twist it left/right to roll.');
+  setStatus('Zelda VR v9: Both thumbsticks pull/push Zelda without moving you. Dual-grip resizing and right-wrist pitch/roll remain active.');
 }
 
 // GitHub transfer stores this Quest-optimised GLB as eight byte-exact binary parts.
@@ -136,6 +136,7 @@ window.addEventListener('blur', () => keys.clear());
 const xrForward=new THREE.Vector3(),xrRight=new THREE.Vector3();
 const xrHeadOrientation=new THREE.Quaternion(),xrRigOrientation=new THREE.Quaternion();
 const xrLocalHead=new THREE.Vector3(),xrPivotBefore=new THREE.Vector3(),xrPivotAfter=new THREE.Vector3();
+const xrViewerWorld=new THREE.Vector3();
 const UP=new THREE.Vector3(0,1,0);
 let snapTurnReady=true;
 const HOME={x:0,z:0};
@@ -179,18 +180,26 @@ function updateXR(dt, frame){
   } else if(right) {
     snapTurnReady=true; // Re-arm the view control while Zelda is being held.
   }
-  // When either hand holds Zelda, that hand's stick keeps BOTH axes working:
-  // X rotates Zelda in 30° steps; Y independently walks forwards/backwards.
-  // A free left stick still strafes on X. A held right stick's X never turns
-  // the viewer. If both Y axes are active, use the stronger input so walking
-  // never doubles in speed or reverses erratically.
+  // Version 9: the Y axis on EITHER controller moves Zelda, NOT the user.
+  // Backward (Y+) pulls her closer to the headset; forward (Y-) pushes away.
+  // This is independent of squeeze/grip state, wrist rotation and two-hand scale.
+  // If both sticks are active, use the larger deflection (right hand wins ties).
   const heldLeft=!!physics?.isHolding('left');
-  const heldRight=!!physics?.isHolding('right');
   const side=left && !heldLeft && Math.abs(left.x)>.16?left.x:0;
-  const leftForward=left && Math.abs(left.y)>.16?left.y:0;
-  const rightForward=heldRight && right && Math.abs(right.y)>.16?right.y:0;
-  const along=Math.abs(rightForward)>Math.abs(leftForward)?rightForward:leftForward;
-  if(!side&&!along)return;
+  const leftDepth=left && Math.abs(left.y)>.16?left.y:0;
+  const rightDepth=right && Math.abs(right.y)>.16?right.y:0;
+  const modelDepth=Math.abs(rightDepth)>=Math.abs(leftDepth)?rightDepth:leftDepth;
+  if(modelDepth && physics) {
+    // Viewer pose is tracking-space; turn it into world coordinates using the
+    // locomotion rig (which can have been changed by a right-stick snap).
+    const eye=pose.transform.position;
+    xrViewerWorld.set(eye.x,eye.y,eye.z);
+    rig.updateMatrixWorld(true);
+    rig.localToWorld(xrViewerWorld);
+    physics.adjustModelDepth(modelDepth,dt,xrViewerWorld);
+  }
+  if(!side)return; // No forward/backward player locomotion from either Y axis.
+  // Keep existing left-stick sideways stepping when LEFT grip is not held.
   const o=pose.transform.orientation;
   xrHeadOrientation.set(o.x,o.y,o.z,o.w);
   rig.getWorldQuaternion(xrRigOrientation);
@@ -198,10 +207,9 @@ function updateXR(dt, frame){
   xrForward.set(0,0,-1).applyQuaternion(xrHeadOrientation);xrForward.y=0;
   if(xrForward.lengthSq()<.00001)return;
   xrForward.normalize();xrRight.crossVectors(xrForward,UP).normalize();
-  // X+ (unheld left) strafes right; Y- (left or held right) walks forward.
   const speed=1.5*dt;
-  rig.position.x+=(-along*xrForward.x+side*xrRight.x)*speed;
-  rig.position.z+=(-along*xrForward.z+side*xrRight.z)*speed;
+  rig.position.x+=side*xrRight.x*speed;
+  rig.position.z+=side*xrRight.z*speed;
 }
 function updateDesktop(dt){
   const forward=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0);
@@ -220,7 +228,7 @@ function resetView(){
   rig.position.set(HOME.x,0,HOME.z);rig.rotation.y=0;snapTurnReady=true;
   if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
   physics?.reset();
-  setStatus('View and Zelda reset. Either held-hand stick walks forward/back and rotates Zelda sideways; release to leave Zelda floating.');
+  setStatus('Zelda reset. LEFT or RIGHT stick back pulls Zelda closer; forward pushes her away, even without gripping.');
 }
 $('reset').addEventListener('click',resetView);
 
@@ -245,7 +253,7 @@ enter.addEventListener('click',async()=>{
     camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
     enter.textContent='PASSTHROUGH ACTIVE';
     physics?.releaseAll();
-    setStatus('Zelda VR v8 active: Two grips resize; RIGHT wrist pitch and roll are simultaneous. Held-hand stick still walks and rotates in 30° steps.');
+    setStatus('Zelda VR v9: EITHER thumbstick back pulls Zelda toward you; forward pushes her away. Works held or free.');
   }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
   finally{enter.disabled=false;}
 });
