@@ -1,0 +1,33 @@
+name: Assemble Zelda GLB
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/zelda.part*'
+      - '.github/workflows/assemble-model.yml'
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reassemble and validate byte-exact Quest model
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat assets/zelda.part0{1..8} > assets/zelda.glb
+          test "$(wc -c < assets/zelda.glb | tr -d ' ')" = "11668312"
+          echo '6da87f491b37c80eab5cebef794476468ea1af08bc253b949a9c33646aef4739  assets/zelda.glb' | sha256sum -c -
+      - name: Commit standalone GLB to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/zelda.glb
+          if ! git diff --cached --quiet; then
+            git commit -m 'Assemble standalone Quest-ready Zelda model'
+            git push origin HEAD:main
+          fi
