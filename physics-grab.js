@@ -8,8 +8,13 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   const world = new RAPIER.World({x:0, y:0, z:0});
   world.timestep = 1 / 60;
 
-  let body = null, collider = null, baseHalf = new THREE.Vector3(0.84,0.40,0.62);
+  let body = null, baseHalf = new THREE.Vector3(0.84,0.40,0.62);
   let objectScale = 1, accumulator = 0, heldMode = 'none';
+  // Very small dot through building/landmark scale. Not literal infinity:
+  // Three.js/WebXR floats and the headset's depth buffer need finite bounds.
+  const MIN_SCALE = 1e-5, MAX_SCALE = 1e4;
+  const SCALE_EXPONENT = 4; // A comfortable hand spread reaches large scales.
+  const MODEL_SIDE_SPEED = 1.4;
   const localBox = new THREE.Box3();
   const handPos = new THREE.Vector3(), handQuat = new THREE.Quaternion();
   const tempPosition = new THREE.Vector3(), tempQuat = new THREE.Quaternion();
@@ -123,14 +128,15 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     modelAnchor.quaternion.set(q.x,q.y,q.z,q.w);
   }
   function changeScale(next) {
-    next=THREE.MathUtils.clamp(next,0.25,3.5);
-    if(Math.abs(next-objectScale)<0.003)return;
+    if(!Number.isFinite(next))return;
+    next=THREE.MathUtils.clamp(next,MIN_SCALE,MAX_SCALE);
+    // Relative tolerance works for microscopic models, unlike the previous
+    // absolute 0.003 cutoff, which prevented scale below ~0.3%.
+    if(Math.abs(next-objectScale)<=Math.max(1e-10,objectScale*1e-6))return;
     objectScale=next;
     modelAnchor.scale.setScalar(objectScale);
-    if(collider) collider.setShape(new RAPIER.Cuboid(
-      Math.max(0.015,baseHalf.x*objectScale),
-      Math.max(0.015,baseHalf.y*objectScale),
-      Math.max(0.015,baseHalf.z*objectScale)));
+    // No collider is needed: Zelda has zero gravity and no collisions. This
+    // avoids constructing enormous Rapier shapes at 1,000m+ object scale.
   }
   function canGrab(hand) {
     if(!body || !renderer.xr.isPresenting)return false;
@@ -164,7 +170,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     handTransform(pair[0],pa,qa);handTransform(pair[1],pb,qb);
     mid.copy(pa).add(pb).multiplyScalar(0.5);
     line.subVectors(pb,pa);
-    twoStartDistance=Math.max(0.10,line.length());
+    twoStartDistance=Math.max(0.05,line.length());
     twoStartLine.copy(line).normalize();
     twoStartRightQuat.copy(qb); // Neutral wrist roll at the precise grab instant.
     twoStartScale=objectScale;
@@ -200,10 +206,10 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hand.snapReady=true;
     if(activeHands().length===2) {
       beginTwo();
-      onStatus('Version 9: resize and twist with both grips; either stick Y pulls/pushes Zelda independently.');
+      onStatus('Version 10: Spread/close both hands for extreme resize; right wrist pitch/roll; left stick X moves Zelda sideways.');
     } else {
       beginOne(hand);
-      onStatus('Zelda grabbed. Stick X rotates Zelda 30°. Stick Y now PULLS her toward you or PUSHES her away.');
+      onStatus('Version 10: left stick X moves Zelda sideways; right held stick X rotates 30°. Either stick Y pulls/pushes Zelda.');
     }
   }
   // Zero gravity / frozen release: when the final grip is released,
@@ -236,11 +242,14 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       if(distance===null)return;
       mid.copy(pa).add(pb).multiplyScalar(0.5);
       const ratio=distance/twoStartDistance;
-      changeScale(twoStartScale*ratio);
+      // Nonlinear fourth-power two-hand scaling allows enormous variations
+      // from normal hand motion; repeated re-grabs accumulate scale.
+      changeScale(twoStartScale*Math.pow(ratio,SCALE_EXPONENT));
       targetQuat.copy(twoHandFrame).multiply(twoStartQuat);
-      // Pivot around the hand midpoint: both pitch and roll rotate the offset
-      // as well as Zelda herself, keeping the two-hand manipulation coherent.
-      targetPosition.copy(twoStartOffset).multiplyScalar(objectScale/twoStartScale)
+      // At huge scales, multiplying this offset by scale would fling Zelda
+      // kilometres away from the user. Preserve her centre-relative offset
+      // while still following both hands' position, swing, pitch and roll.
+      targetPosition.copy(twoStartOffset)
         .applyQuaternion(twoHandFrame).add(mid);
     }
     // Separate model-depth travel from grip pose and two-hand scaling.
@@ -274,7 +283,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hands.forEach(h=>{h.active=false;h.pressed=false;h.snapReady=true;});
     depthOffset.set(0,0,0);
     heldMode='none';
-    if(body) {world.removeRigidBody(body);body=null;collider=null;}
+    if(body) {world.removeRigidBody(body);body=null;}
     baseHalf.copy(size).multiplyScalar(0.5);
     objectScale=1;
     modelAnchor.scale.setScalar(1);
@@ -287,7 +296,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     body=world.createRigidBody(RAPIER.RigidBodyDesc.fixed()
       .setTranslation(p.x,p.y,p.z)
       .setRotation({x:q.x,y:q.y,z:q.z,w:q.w}));
-    collider=world.createCollider(RAPIER.ColliderDesc.cuboid(baseHalf.x,baseHalf.y,baseHalf.z),body);
+    // No Rapier collider: the model freezes on release; physics collisions and
+    // gravity were removed in earlier versions. Hit-testing uses visual bounds.
     throwLinear.set(0,0,0);throwAngular.set(0,0,0);
     lastSampleValid=false;
   }
@@ -316,6 +326,20 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     body.setLinvel({x:0,y:0,z:0},true);
     body.setAngvel({x:0,y:0,z:0},true);
     throwLinear.set(0,0,0);throwAngular.set(0,0,0);
+  }
+  function adjustModelSide(stickX, dt, viewRight) {
+    // Left thumbstick X moves Zelda left/right relative to where the headset
+    // faces. Always moves the model, regardless of which grips are held.
+    if(!body || !viewRight || !Number.isFinite(stickX)
+      || !Number.isFinite(dt) || dt<=0 || Math.abs(stickX)<0.16)return;
+    const amount=stickX*MODEL_SIDE_SPEED*Math.min(dt,0.05);
+    if(activeHands().length) {
+      // Separate post-grip offset survives wrist rotations / two-hand scale.
+      depthOffset.addScaledVector(viewRight,amount);
+    } else {
+      modelAnchor.position.addScaledVector(viewRight,amount);
+      body.setTranslation(modelAnchor.position,true);
+    }
   }
   function adjustModelDepth(stickY, dt, viewerPosition) {
     // Works with neither, one, or both grips held. Quest axes: pushing
@@ -395,7 +419,10 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function updateHeldThumbsticks() {
     for(const hand of hands) {
-      if(!hand.active || !hand.source?.gamepad) {
+      // Left-stick X is now ALWAYS model-left/right, even during a left grip.
+      // Right-stick X retains 30° model turns while holding Zelda.
+      if(!hand.active || hand.source?.handedness==='left'
+        || !hand.source?.gamepad) {
         hand.snapReady=true;
         continue;
       }
@@ -429,5 +456,5 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
 
   renderer.xr.addEventListener('sessionend',releaseAll);
-  return {attachModel,update,reset,releaseAll,pollGrips,isHolding,adjustModelDepth};
+  return {attachModel,update,reset,releaseAll,pollGrips,isHolding,adjustModelDepth,adjustModelSide};
 }
