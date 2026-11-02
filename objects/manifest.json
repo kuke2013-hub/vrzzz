@@ -34,7 +34,7 @@
       "url": "./objects/ellie-arrodillada/",
       "model": "./objects/ellie-arrodillada/assets/ellie-arrodillada.glb",
       "description": "A textured kneeling character in Quest 3 passthrough, using the shared Zelda VR v13 controller system.",
-      "status": "pending-model-upload",
+      "status": "ready",
       "created": "2026-11-02"
     }
   ]
