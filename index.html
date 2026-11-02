@@ -1,62 +1,63 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-  <meta name="theme-color" content="#131b22">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <title>Zelda VR v13 · Remote UP/DOWN/LEFT/RIGHT Control</title>
-  <style>
-    :root{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}
-    *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a23}
-    body{background:radial-gradient(ellipse at 50% 55%,#475663 0%,#1d2d38 45%,#0b131c 100%)}
-    #scene{position:fixed;inset:0}canvas{display:block;width:100%;height:100%}
-    #panel{position:absolute;z-index:3;top:clamp(12px,3vw,28px);left:clamp(12px,3vw,28px);width:min(350px,calc(100% - 24px));background:#101821e8;border:1px solid #ffffff23;border-radius:17px;padding:19px;box-shadow:0 20px 50px #0006;backdrop-filter:blur(18px)}
-    .eyebrow{color:#81d6c6;font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase}
-    .versionline{margin:-1px 0 10px;color:#95d6c6;font-size:12px;line-height:1.4}
-    .versionline a{color:#b6e9d8;text-decoration:underline;text-underline-offset:3px}
-    .versionline strong{color:#e6f9f3;font-weight:700}
-    h1{font-size:26px;line-height:1.1;margin:7px 0 7px;letter-spacing:-.025em}
-    .sub{font-size:13px;color:#acbfcc;line-height:1.5;margin-bottom:15px}
-    .primary{width:100%;border:0;border-radius:11px;font-size:15px;font-weight:750;padding:14px 12px;color:#102223;background:#86e8d4;cursor:pointer;touch-action:manipulation}
-    .primary:disabled{opacity:.5;cursor:not-allowed}
-    .controls{display:flex;gap:8px;margin-top:9px}
-    .controls button{flex:1;background:#233442;color:#e7f5f5;border:1px solid #ffffff2b;border-radius:9px;padding:10px 5px;cursor:pointer}
-    #status{margin:12px 0 6px;color:#d3e1e8;font-size:12px;line-height:1.5;min-height:34px;overflow-wrap:anywhere}
-    #filelabel{display:block;font-size:12px;color:#84d8c8;margin-top:8px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}#assetFile{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
-    .hint{margin:11px 0 0;border-top:1px solid #ffffff20;padding-top:10px;color:#a3b9c8;font-size:12px;line-height:1.55}
-    .kbd{border:1px solid #ffffff40;border-radius:4px;font-size:10px;padding:1px 4px;color:#e6f7fc}
-    #footer{position:fixed;z-index:2;bottom:15px;left:50%;transform:translateX(-50%);background:#091720bb;border:1px solid #ffffff18;padding:9px 14px;border-radius:11px;color:#c1d0d6;white-space:nowrap;font-size:12px;pointer-events:none}
-    @media(max-width:600px){#panel{padding:14px}h1{font-size:21px}.sub{margin-bottom:9px}#footer{font-size:10px;bottom:8px}}
-  </style>
-  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}</script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111722">
+<title>Hello World · VR Objects</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:#0b111b;color:#f2f6f8;display:grid;place-items:center;padding:36px 20px}
+main{width:min(680px,100%)}
+small{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#79c9c2;font-weight:700}
+h1{font-size:clamp(42px,8vw,72px);letter-spacing:-.055em;margin:9px 0 4px;font-weight:750}
+p{color:#a6b5c1;font-size:16px;line-height:1.55}
+hr{border:0;border-top:1px solid #263542;margin:31px 0}
+h2{font-size:16px;letter-spacing:.02em;margin:0 0 14px}
+a{color:#9ce6dc}
+#directory{display:grid;gap:10px}
+.object{display:block;text-decoration:none;border:1px solid #263744;background:#121d29;border-radius:14px;padding:18px 20px;transition:border-color .15s,transform .15s}
+.object:hover{border-color:#75c9bf;transform:translateY(-2px)}
+.name{font-size:19px;font-weight:700;color:#f4f8fa;display:block}
+.desc{font-size:13px;color:#a6b6c4;display:block;margin-top:6px;line-height:1.5}
+.state{font-size:11px;display:inline-block;margin-top:10px;color:#8db6bb}
+#catalogue-status{color:#b4c4cf;font-size:13px}
+footer{font-size:12px;color:#94a8b7;margin-top:30px}
+footer a{color:#add9df}
+</style>
 </head>
 <body>
-  <div id="scene"></div>
-  <section id="panel">
-    <div class="eyebrow">Mixed reality / WebXR</div>
-    <h1>Zelda VR <span style="color:#86e8d4">v13</span> · Passthrough</h1>
-    <div class="versionline"><strong>Version 13.0</strong> · Remote positioning with hand motion and pointing direction · <a href="https://github.com/kuke2013-hub/vrzzz/blob/main/VERSIONS.md" target="_blank" rel="noopener noreferrer">Version history</a></div>
-    <div class="sub">Life-size Zelda in your real room. No virtual floor, grid, or stage: only the character and passthrough.</div>
-    <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
-    <div class="controls"><button id="reset" type="button">Reset view and Zelda</button></div>
-    <div id="status" role="status">Preparing 3D scene…</div>
-    <label id="filelabel" for="assetFile">Load GLB from device (desktop preview)</label><input id="assetFile" type="file" accept=".glb,model/gltf-binary">
-    <div class="hint"><strong>Quest controls · v13</strong>
-      <br><strong>LEFT stick LEFT/RIGHT:</strong> move Zelda left or right (not the viewer), whether or not you grip her.
-      <br><strong>EITHER stick BACK/FORWARD:</strong> pull Zelda toward you or push her away, with or without gripping.
-      <br><strong>Remote grabbing:</strong> aim either Quest controller at Zelda and squeeze the side grip. Target-ray aiming + gentle assist work even at long range.
-      <br><strong>Move Zelda remotely:</strong> hold either grip and move the controller UP, DOWN, LEFT or RIGHT, or change where it points. Physical hand movement AND pointing gestures both translate distant Zelda, even when she is far away. Twist/tilt still controls rotation.
-      <br><strong>Both grips:</strong> either hand can move Zelda by moving its position or pointing direction; both hands contribute while you resize and rotate her.
-      <br><strong>Two side grips:</strong> spread hands to enlarge, bring them together to shrink. <strong>Linear scaling: 10%–350%</strong> of original size, with natural hand-spacing control.
-      <br><strong>RIGHT wrist during two-hand grab:</strong> pitch Zelda up/down and roll left/right while scaling.
-      <br><strong>RIGHT stick LEFT/RIGHT while gripping:</strong> rotate Zelda 30° per tilt. Without a right grip, turn your viewpoint 30°.
-      <br><strong>Release grip:</strong> Zelda stays fixed without gravity. Press Reset to restore normal size and position.
-      <br><br><strong>Desktop:</strong> Drag to orbit · Scroll to zoom · <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> to move
-    </div>
-  </section>
-  <div id="footer">ZELDA VR v13 · Distant UP/DOWN/LEFT/RIGHT with either or both hands</div>
-  <script type="module" src="./app.js?v=13"></script>
+<main>
+  <small>Mixed reality / Meta Quest 3</small>
+  <h1>Hello World.</h1>
+  <p>An expanding library of independent VR objects. Select an object to enter its own passthrough experience.</p>
+  <hr>
+  <h2>Object directory</h2>
+  <div id="directory" aria-live="polite"></div>
+  <p id="catalogue-status" role="status">Loading object catalogue…</p>
+  <footer>Built on the shared Zelda VR v13 controller system. <a href="./v13.html">Open the original Zelda v13 experience</a>.</footer>
+</main>
+<script>
+(async()=>{
+ const directory=document.getElementById('directory'),status=document.getElementById('catalogue-status');
+ try{
+  const response=await fetch('./objects/manifest.json',{cache:'no-store'});
+  if(!response.ok)throw new Error('HTTP '+response.status);
+  const manifest=await response.json();
+  if(!Array.isArray(manifest.objects))throw new Error('Invalid catalogue');
+  let shown=0;
+  for(const object of manifest.objects){
+   if(!/^[a-z0-9-]+$/.test(object.id)||object.url!=='./objects/'+object.id+'/')continue;
+   const link=document.createElement('a');link.className='object';link.href=object.url;
+   const name=document.createElement('span');name.className='name';name.textContent=object.title||object.id;
+   const desc=document.createElement('span');desc.className='desc';desc.textContent=object.description||'Quest 3 object';
+   const state=document.createElement('span');state.className='state';state.textContent=object.status==='ready'?'Model published':'Model upload pending';
+   link.append(name,desc,state);directory.append(link);shown++;
+  }
+  status.textContent=shown?'Showing '+shown+' object'+(shown===1?'':'s')+'.':'No objects yet.';
+ }catch(error){status.textContent='Could not load the catalogue: '+error.message;}
+})();
+</script>
 </body>
 </html>

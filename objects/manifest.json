@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "objects": [
+    {
+      "id": "gloria",
+      "title": "Gloria",
+      "url": "./objects/gloria/",
+      "model": "./objects/gloria/assets/gloria.glb",
+      "description": "A textured sculpture in Meta Quest 3 passthrough, with the shared Zelda VR v13 controls.",
+      "status": "pending-model-upload",
+      "created": "2026-11-02"
+    }
+  ]
+}
