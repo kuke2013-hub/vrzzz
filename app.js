@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGrabPhysics } from './physics-grab.js?v=3';
+import { createGrabPhysics } from './physics-grab.js?v=4';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -179,8 +179,11 @@ function updateXR(dt, frame){
   } else if(right) {
     snapTurnReady=true; // Re-arm the view control while Zelda is being held.
   }
-  if(!left || physics?.isHolding('left'))return;
-  const side=Math.abs(left.x)>.16?left.x:0;
+  if(!left)return;
+  // Grip + stick axes can be used simultaneously: held-left X snaps Zelda,
+  // while Y keeps the usual forward/backward headset-relative locomotion.
+  // Without the left grip, X continues to strafe normally.
+  const side=!physics?.isHolding('left') && Math.abs(left.x)>.16?left.x:0;
   const along=Math.abs(left.y)>.16?left.y:0;
   if(!side&&!along)return;
   const o=pose.transform.orientation;
