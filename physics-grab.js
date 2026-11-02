@@ -5,7 +5,7 @@ import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.
 // shadow catcher, grid, ring, hit marker or controller ray is ever rendered.
 export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) {
   await RAPIER.init();
-  const world = new RAPIER.World({x:0, y:-9.81, z:0});
+  const world = new RAPIER.World({x:0, y:0, z:0}); // Zero gravity: release is stationary.
   world.timestep = 1 / 60;
   const ground = world.createRigidBody(RAPIER.RigidBodyDesc.fixed()
     .setTranslation(0,-0.10,0));
