@@ -37,9 +37,9 @@
     <div class="controls"><button id="reset" type="button">Reset view and Zelda</button></div>
     <div id="status" role="status">Preparing 3D scene…</div>
     <label id="filelabel" for="assetFile">Load GLB from device (desktop preview)</label><input id="assetFile" type="file" accept=".glb,model/gltf-binary">
-    <div class="hint"><strong>Quest controls</strong><br><strong>While holding Zelda with either side grip:</strong> tilt that hand’s thumbstick left/right to rotate Zelda 30° per step; centre it before the next step.<br>Side grip (squeeze): grab and rotate Zelda; release to throw and bounce<br>Both side grips: move hands apart to enlarge, together to shrink (25%–350%)<br>Left stick when not holding: move / step sideways<br>Right stick when not holding: 30° viewpoint snap-turn<br><br><strong>Desktop</strong><br>Drag to orbit · Scroll to zoom · <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> to move</div>
+    <div class="hint"><strong>Quest controls</strong><br><strong>While holding Zelda with either side grip:</strong> tilt that hand’s thumbstick left/right to rotate Zelda 30° per step; centre it before the next step.<br>Side grip (squeeze): grab Zelda; release to freeze her at the current position with no gravity<br>Both side grips: move hands apart to enlarge, together to shrink (25%–350%)<br>Left stick forward/back: move even while holding Zelda; left/right rotates Zelda if holding with left grip, otherwise strafes<br>Right stick when not holding: 30° viewpoint snap-turn<br><br><strong>Desktop</strong><br>Drag to orbit · Scroll to zoom · <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> to move</div>
   </section>
-  <div id="footer">Quest 3 · Invisible collision floor · Grip, throw &amp; two-hand scale</div>
-  <script type="module" src="./app.js?v=3"></script>
+  <div id="footer">Quest 3 · Passthrough · Grip, rotate, resize &amp; freeze in place</div>
+  <script type="module" src="./app.js?v=4"></script>
 </body>
 </html>
