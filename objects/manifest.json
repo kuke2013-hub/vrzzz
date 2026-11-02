@@ -9,6 +9,15 @@
       "description": "A textured sculpture in Meta Quest 3 passthrough, with the shared Zelda VR v13 controls.",
       "status": "pending-model-upload",
       "created": "2026-11-02"
+    },
+    {
+      "id": "evil-angel-woman",
+      "title": "Evil Angel Woman",
+      "url": "./objects/evil-angel-woman/",
+      "model": "./objects/evil-angel-woman/assets/evil-angel-woman.glb",
+      "description": "A full-size textured winged woman model in Meta Quest 3 passthrough, with the shared Zelda VR v13 controls.",
+      "status": "pending-model-upload",
+      "created": "2026-11-02"
     }
   ]
 }
