@@ -30,7 +30,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   const depthDirection = new THREE.Vector3();
   const MODEL_DEPTH_SPEED = 1.4; // metres/second at full stick deflection
   const MODEL_NEAR_LIMIT = 0.60;
-  const MODEL_FAR_LIMIT = 12;
+  const MODEL_FAR_LIMIT = 50000; // Push building-sized Zelda far enough to inspect
   const mid = new THREE.Vector3(), line = new THREE.Vector3(), rotationDelta = new THREE.Quaternion();
   const relativeOffset = new THREE.Vector3();
   let twoStartDistance = 1, twoStartScale = 1;
@@ -352,8 +352,10 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     if(distance<0.001)return;
     depthDirection.divideScalar(distance);
     // Positive distance change sends Zelda away; negative pulls her nearer.
+    // Scale-adaptive speed lets you move giant Zelda away without waiting
+    // minutes, but remains unchanged at ordinary human scale.
     const desired=THREE.MathUtils.clamp(
-      distance - stickY * MODEL_DEPTH_SPEED * Math.min(dt,0.05),
+      distance - stickY * MODEL_DEPTH_SPEED * Math.min(10000,Math.max(1,objectScale)) * Math.min(dt,0.05),
       MODEL_NEAR_LIMIT,MODEL_FAR_LIMIT);
     const delta=desired-distance;
     if(Math.abs(delta)<1e-7)return;
