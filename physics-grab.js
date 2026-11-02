@@ -23,12 +23,17 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   const relativeOffset = new THREE.Vector3();
   let twoStartDistance = 1, twoStartScale = 1;
   const twoStartLine = new THREE.Vector3(), twoStartQuat = new THREE.Quaternion(), twoStartOffset = new THREE.Vector3();
-  // Two-hand mode uses the right controller for wrist-roll priority. Hand spacing
-  // sets scale; hand-to-hand direction provides swing; the right grip adds twist.
+  // V8: both wrist pitch (up/down) and roll (left/right) come from the
+  // right controller. Hand separation still sets scale; the hand-to-hand
+  // direction supplies overall swing. Only local-Y yaw is excluded here:
+  // that component belongs to hand-line swing and the 30° thumbstick snaps.
   const twoStartRightQuat = new THREE.Quaternion();
-  const rightExpectedQuat = new THREE.Quaternion(), rightResidualQuat = new THREE.Quaternion();
-  const twoHandTwist = new THREE.Quaternion(), twoHandFrame = new THREE.Quaternion();
-  const rightTwistAxis = new THREE.Vector3();
+  const rightExpectedQuat = new THREE.Quaternion();
+  const rightResidualLocal = new THREE.Quaternion();
+  const rightYawLocal = new THREE.Quaternion();
+  const rightPitchRollLocal = new THREE.Quaternion();
+  const rightPitchRollWorld = new THREE.Quaternion();
+  const twoHandFrame = new THREE.Quaternion();
   const holdPosition = new THREE.Vector3(), holdQuat = new THREE.Quaternion();
   const lastHeldQuat = new THREE.Quaternion();
   let lastSampleValid = false;
@@ -77,20 +82,26 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     else line.copy(twoStartLine);
     // Swing the model as the hand-to-hand line changes, as in v6.
     rotationDelta.setFromUnitVectors(twoStartLine,line);
-    // A purely swinging right hand would have this orientation. Only the
-    // residual wrist roll (around the controller's forward axis) is applied,
-    // so moving hands around does not double-count the swing rotation.
+    // The controller's predicted pose after hand-line movement alone.
+    // Its orientation is the right-wrist neutral grip rotated by swing.
     rightExpectedQuat.copy(rotationDelta).multiply(twoStartRightQuat);
-    rightTwistAxis.set(0,0,-1).applyQuaternion(rightExpectedQuat).normalize();
-    rightResidualQuat.copy(qb).multiply(rightExpectedQuat.clone().invert()).normalize();
-    const projected=rightResidualQuat.x*rightTwistAxis.x
-      +rightResidualQuat.y*rightTwistAxis.y
-      +rightResidualQuat.z*rightTwistAxis.z;
-    twoHandTwist.set(rightTwistAxis.x*projected,rightTwistAxis.y*projected,
-      rightTwistAxis.z*projected,rightResidualQuat.w);
-    if(twoHandTwist.lengthSq()<1e-10)twoHandTwist.identity();
-    else twoHandTwist.normalize();
-    twoHandFrame.copy(twoHandTwist).multiply(rotationDelta).normalize();
+    // Measure physical wrist motion IN THE CONTROLLER frame. This avoids
+    // changing the twist axes after joystick turns or moving the hands.
+    rightResidualLocal.copy(rightExpectedQuat).invert().multiply(qb).normalize();
+    // Swing-twist decomposition: remove rotation around the controller's
+    // local Y axis (handled by the hand line), preserve BOTH local X wrist
+    // pitch (up/down) and local Z wrist roll (left/right) simultaneously.
+    rightYawLocal.set(0,rightResidualLocal.y,0,rightResidualLocal.w);
+    if(rightYawLocal.lengthSq()<1e-10)rightYawLocal.identity();
+    else rightYawLocal.normalize();
+    rightPitchRollLocal.copy(rightResidualLocal)
+      .multiply(rightYawLocal.clone().invert()).normalize();
+    // Conjugate the two-axis wrist movement into world coordinates before
+    // composing with the hand-to-hand swing.
+    rightPitchRollWorld.copy(rightExpectedQuat)
+      .multiply(rightPitchRollLocal)
+      .multiply(rightExpectedQuat.clone().invert()).normalize();
+    twoHandFrame.copy(rightPitchRollWorld).multiply(rotationDelta).normalize();
     return distance;
   }
   function handTransform(hand, position, quaternion) {
@@ -178,7 +189,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hand.snapReady=true;
     if(activeHands().length===2) {
       beginTwo();
-      onStatus('Two-hand grab: spread hands to enlarge Zelda, bring them together to shrink, and twist the RIGHT wrist to roll her at the same time.');
+      onStatus('Version 8: resize with both hands while tilting the RIGHT wrist up/down (pitch) and twisting left/right (roll).');
     } else {
       beginOne(hand);
       onStatus('Zelda grabbed. Thumbstick X rotates 30°, Y walks forward/back. Release grip to leave Zelda floating in place.');
@@ -215,8 +226,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       const ratio=distance/twoStartDistance;
       changeScale(twoStartScale*ratio);
       targetQuat.copy(twoHandFrame).multiply(twoStartQuat);
-      // Pivot about the hand midpoint; roll should also rotate Zelda's offset,
-      // not just her orientation, so she remains centred between the hands.
+      // Pivot around the hand midpoint: both pitch and roll rotate the offset
+      // as well as Zelda herself, keeping the two-hand manipulation coherent.
       targetPosition.copy(twoStartOffset).multiplyScalar(objectScale/twoStartScale)
         .applyQuaternion(twoHandFrame).add(mid);
     }
@@ -328,9 +339,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     }
     if(heldMode==='two') {
       if(readTwoHandFrame(snapHandA,snapHandB,snapHandQA,snapHandQB)===null)return false;
-      // Q = F * twoStartQuat, where F combines interhand swing with right-hand
-      // wrist roll. Bake joystick yaw into that full frame to avoid twisting
-      // the wrist axis or losing the 30-degree snap after a wrist movement.
+      // Q = F * twoStartQuat. F now combines hand-line swing with BOTH
+      // right-wrist pitch and roll; bake each 30° snap into that entire frame.
       snapFrameTurn.copy(twoHandFrame).invert().multiply(yawStep).multiply(twoHandFrame);
       twoStartQuat.premultiply(snapFrameTurn).normalize();
       return true;
