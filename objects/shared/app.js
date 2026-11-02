@@ -9,6 +9,81 @@ const OBJECT_CONFIG = window.VR_OBJECT_CONFIG || Object.freeze({modelUrl:null,fi
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
 const enter = $('enterAR');
+
+// One brightness control for every page that uses this shared application.
+// At 100% the source materials are unchanged; at 0% the output fragment is black.
+// The existing Zelda v13 controller/physics engine is not modified.
+const vrObjectBrightness = {value:1.0};
+const vrPatchedMaterials = new WeakSet();
+function mountBrightnessSlider() {
+  const panel = $('panel');
+  if (!panel || $('vrBrightnessSlider')) return;
+  const style = document.createElement('style');
+  style.textContent = [
+    '.vr-brightness{border:1px solid #ffffff26;background:#172733;border-radius:10px;padding:11px 13px 8px;margin:0 0 13px}',
+    '.vr-brightness-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;color:#e4f4f3;font-size:13px;font-weight:650}',
+    '.vr-brightness-output{font-variant-numeric:tabular-nums;color:#a4e8d9}',
+    '#vrBrightnessSlider{display:block;width:100%;height:28px;cursor:pointer;accent-color:#86e8d4;touch-action:pan-x}',
+    '.vr-brightness-desc{color:#a8bec9;font-size:11px;line-height:1.35;margin:0 0 2px}'
+  ].join('\n');
+  document.head.append(style);
+  const section = document.createElement('section');
+  section.className = 'vr-brightness';
+  const heading = document.createElement('div');
+  heading.className = 'vr-brightness-heading';
+  const label = document.createElement('label');
+  label.htmlFor = 'vrBrightnessSlider';
+  label.textContent = 'Model brightness';
+  const readout = document.createElement('output');
+  readout.className = 'vr-brightness-output';
+  readout.htmlFor = 'vrBrightnessSlider';
+  readout.textContent = '100%';
+  heading.append(label,readout);
+  const range = document.createElement('input');
+  range.type = 'range'; range.id = 'vrBrightnessSlider';
+  range.min = '0'; range.max = '100'; range.step = '1'; range.value = '100';
+  range.setAttribute('aria-label','Model brightness (0 percent black, 100 percent original)');
+  const desc = document.createElement('p');
+  desc.className = 'vr-brightness-desc';
+  desc.textContent = '100% original appearance · 0% black';
+  section.append(heading,range,desc);
+  panel.insertBefore(section, enter);
+  range.addEventListener('input', () => {
+    const percentage = Math.max(0,Math.min(100,Number(range.value)||0));
+    vrObjectBrightness.value = percentage / 100;
+    readout.value = percentage + '%';
+    readout.textContent = percentage + '%';
+    range.setAttribute('aria-valuetext', percentage === 0 ? 'Black' : percentage === 100 ? 'Original brightness' : percentage+' percent brightness');
+  });
+}
+mountBrightnessSlider();
+function applyBrightnessShader(root) {
+  root.traverse(node => {
+    if (!node.isMesh) return;
+    const list = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of list) {
+      if (!material || vrPatchedMaterials.has(material) || material.isShaderMaterial) continue;
+      const previous = material.onBeforeCompile;
+      const previousCacheKey = material.customProgramCacheKey.bind(material);
+      material.onBeforeCompile = function (shader, renderer) {
+        if (typeof previous === 'function') previous.call(this, shader, renderer);
+        const hook = '#include <dithering_fragment>';
+        if (!shader.fragmentShader.includes(hook)) {
+          console.warn('Model brightness: custom shader lacks expected output hook', material.name);
+          return;
+        }
+        shader.uniforms.vrObjectBrightness = vrObjectBrightness;
+        shader.fragmentShader =
+          'uniform float vrObjectBrightness;\n' +
+          shader.fragmentShader.replace(hook, hook + '\n gl_FragColor.rgb *= vrObjectBrightness;');
+      };
+      material.customProgramCacheKey = () => previousCacheKey() + '|vr-brightness-v1';
+      material.needsUpdate = true;
+      vrPatchedMaterials.add(material);
+    }
+  });
+}
+
 let arSupported = false, arChecked = false, modelReady = false, modelLoading = false, modelLoadFailed = false;
 let loadGeneration = 0;
 const setLoadProgress = (message, percent = null, state = 'loading') => {
@@ -109,6 +184,7 @@ function installObject(root,label='Object') {
   root.traverse(part=>{
     if(part.isMesh){part.castShadow=false;part.receiveShadow=false;}
   });
+  applyBrightnessShader(root);
   modelAnchor.add(root);
   modelAnchor.scale.setScalar(1);
   modelAnchor.rotation.set(0,Number(OBJECT_CONFIG.initialYawRadians)||0,0);

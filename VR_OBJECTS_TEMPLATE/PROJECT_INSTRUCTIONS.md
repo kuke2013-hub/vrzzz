@@ -47,3 +47,11 @@ deployment or headset test without checking it.
 For models from OBJ/FBX/other formats, prefer converting to embedded-texture
 GLB to avoid broken external texture or MTL paths. A standalone FBX/OBJ may
 work for geometry but is not guaranteed to preserve materials automatically.
+
+## Mandatory publishing and verification contract
+
+**Full self-service upload is required.** When a model is uploaded in this ChatGPT Project, the assistant is responsible for producing, uploading, committing, deploying, and verifying the real model asset and its page without making the user upload, rename, or copy files or run Git commands. Do not send the user an asset-folder link as a manual workaround. Do not announce a finished object if the GLB is absent or HTTP returns 404. If current tools cannot transfer binary data, be explicit that publication is blocked; use a genuinely binary-capable execution environment rather than invent success. Never claim that a text-only GitHub commit uploaded the GLB.
+
+Before announcing success, check the exact case-sensitive \`modelUrl\` in each object's \`config.js\`, the asset path in \`objects/manifest.json\`, the GitHub repository binary blob, the HTTPS Pages response (HTTP 200 and valid GLB header), and actual browser loading. Compare filenames literally. Confirm deployment success but understand that deployment success alone does not prove an asset was included. Retain prior objects and the original Zelda app.
+
+**Required brightness control for all new objects:** Every independently published object page must use the shared \`objects/shared/app.js\` brightness control in its pre-passthrough menu. Default is 100% = the original lit appearance; 0% = black rendering of the model, with all intermediate brightness levels. The control must act on model pixels only, not on the physical passthrough environment, other pages or controller behaviour. Preserve model textures, materials and their alpha; adjust rendered output without destructive edits to GLB or rewriting \`physics-grab.js\`. Keep the slider available before the "Enter Passthrough" button and make its chosen value apply inside XR. Test both endpoints and an intermediate value where browser testing is available.

@@ -79,3 +79,10 @@ left intact.
 **Versioning:** This is Template 1.0 based on v13.0 controls. Preserve
 `VR_OBJECTS_TEMPLATE/` as the immutable-ish known-good base; changes
 to future object instances belong in separate folders/repos.
+
+
+## Catalogue-wide brightness and publishing
+
+Published objects reuse \`objects/shared/app.js\`, which automatically injects a "Model brightness" slider in the pre-VR panel. It defaults to 100% original appearance and dims the model to black at 0% without dimming passthrough. Do not duplicate the brightness controller in each object's folder. The underlying \`physics-grab.js\` remains the Zelda VR v13 baseline.
+
+Do not consider an object published until its real, case-sensitive \`assets/<name>.glb\` binary is present in GitHub and loads with HTTP 200 from GitHub Pages. A successful Pages build is insufficient. The assistant—not the user—is responsible for the full upload and verification. If the connected tools cannot transfer binary files, report that the model publication is blocked; do not shift the manual upload to the user or mislabel the object as ready.
