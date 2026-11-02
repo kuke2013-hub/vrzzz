@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGrabPhysics } from './physics-grab.js?v=2';
+import { createGrabPhysics } from './physics-grab.js?v=3';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -171,11 +171,15 @@ function updateXR(dt, frame){
     if(source.handedness==='left') left=stick;
     if(source.handedness==='right') right=stick;
   }
-  if(right){
+  // A held controller's stick rotates Zelda, not the player.
+  // When that grip is released, the usual locomotion/snap-turn controls resume.
+  if(right && !physics?.isHolding('right')){
     if(Math.abs(right.x)<.30) snapTurnReady=true;
     if(snapTurnReady&&Math.abs(right.x)>.70){snapTurn(right.x>0?1:-1,pose);snapTurnReady=false;}
+  } else if(right) {
+    snapTurnReady=true; // Re-arm the view control while Zelda is being held.
   }
-  if(!left)return;
+  if(!left || physics?.isHolding('left'))return;
   const side=Math.abs(left.x)>.16?left.x:0;
   const along=Math.abs(left.y)>.16?left.y:0;
   if(!side&&!along)return;
@@ -249,8 +253,10 @@ let previous=0;
 renderer.setAnimationLoop((time,frame)=>{
   const dt=previous?Math.min(.05,(time-previous)/1000):0;
   previous=time;
-  if(renderer.xr.isPresenting)updateXR(dt,frame);
-  else{updateDesktop(dt);controls.update();}
+  if(renderer.xr.isPresenting) {
+    physics?.pollGrips(); // Resolve grip before routing thumbstick actions.
+    updateXR(dt,frame);
+  } else {updateDesktop(dt);controls.update();}
   physics?.update(dt);
   renderer.render(scene,camera);
 });
