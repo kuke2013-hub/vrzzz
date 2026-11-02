@@ -13,9 +13,10 @@ so Zelda can fall, roll and bounce off the floor while the real room stays visib
 | Quest 3 control | Action |
 | --- | --- |
 | Left thumbstick forward/back | Walk relative to headset forward direction |
-| Left thumbstick sideways | Step left or right |
-| Right thumbstick sideways | Snap-turn the scene 30°; center stick before next turn |
+| Left thumbstick sideways, when left grip is **not** holding Zelda | Step left or right |
+| Right thumbstick sideways, when right grip is **not** holding Zelda | Snap-turn the scene 30°; center stick before next turn |
 | Left **side grip / squeeze** near Zelda, or aiming at her | Pick up and rotate the whole model while holding the button |
+| **Thumbstick left/right on whichever controller is gripping Zelda** | Rotate **Zelda**, not your view, 30° per tilt; recenter to re-arm |
 | Release the last side grip | Throw / drop; gravity, collision, inertia and bounce resume |
 | Hold **both side grips** on Zelda | Two-hand scaling: stretch hands apart to enlarge, move closer to shrink; simultaneously reorient and reposition |
 | Release one of two grips | Continue holding with the other hand without teleporting |
@@ -30,7 +31,7 @@ pose: around 1.67m long and approximately 0.8m high, rather than a standing
 **Important interaction:** The side buttons are the Quest Touch controller
 **grip/squeeze buttons**, not the index-finger triggers or the joystick clicks.
 The hand must touch/approach the model, or point at it within 3m to begin a
-grab. Once two grips are holding it, hand spacing controls size. Physics uses a
+grab. Once two grips are holding it, hand spacing controls size. Either held hand's thumbstick can also snap Zelda's yaw by 30°. Model rotation remains applied while you continue moving your hand; releasing the grip restores normal thumbstick locomotion or viewpoint turning. Physics uses a
 cuboid envelope around the character, so collision is approximate rather than
 per-vertex, and bouncing is visibly stylized rather than a ragdoll simulation.
 
@@ -46,7 +47,8 @@ WebXR **immersive-ar** with **local-floor** enabled.
 * app.js — model load (single 11,668,312-byte GLB, with eight split-part
   fallback), calibrated human scale, headset-relative locomotion and snap turn.
 * physics-grab.js — Rapier 3D physics, invisible ground collider, side-grip
-  grabbing and throwing, dual-hand geometric scaling and orientation.
+  grabbing and throwing, dual-hand geometric scaling and orientation,
+  30° held-model thumbstick yaw with per-hand rearm thresholds.
 * assets/zelda.glb — Quest-optimised GLB embedded material textures.
 
 Physics is computed locally in the Quest browser; no backend or paid API is
