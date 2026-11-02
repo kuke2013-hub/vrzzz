@@ -30,6 +30,11 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   const holdPosition = new THREE.Vector3(), holdQuat = new THREE.Quaternion();
   const lastHeldQuat = new THREE.Quaternion();
   let lastSampleValid = false;
+  // Yaw snaps affect the held OBJECT, never the player's rig/camera.
+  // Applied after the hand pose so a step persists during subsequent hand motion.
+  const worldUp = new THREE.Vector3(0,1,0);
+  const heldYaw = new THREE.Quaternion();
+  const yawStep = new THREE.Quaternion();
 
   // Register both target-ray events (squeeze button) and grip-space transforms.
   // Do not infer left/right from XR input source enumeration order.
@@ -38,7 +43,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     const controller = renderer.xr.getController(i);
     rig.add(grip);
     rig.add(controller);
-    const hand = {index:i, grip, controller, source:null, pressed:false, active:false};
+    const hand = {index:i, grip, controller, source:null, pressed:false, active:false, snapReady:true};
     controller.addEventListener('connected', e => {hand.source=e.data;});
     controller.addEventListener('disconnected', () => {setPressed(hand,false);hand.source=null;});
     controller.addEventListener('squeezestart', () => setPressed(hand,true));
@@ -84,6 +89,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function beginOne(hand) {
     heldMode='one';
+    heldYaw.identity(); // Capture previous snap in the new hand-relative baseline.
     handTransform(hand,handPos,handQuat);
     offset.copy(modelAnchor.position).sub(handPos).applyQuaternion(handQuat.clone().invert());
     offsetQuat.copy(handQuat).invert().multiply(modelAnchor.quaternion);
@@ -103,6 +109,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     twoStartQuat.copy(modelAnchor.quaternion);
     twoStartOffset.copy(modelAnchor.position).sub(mid);
     heldMode='two';
+    heldYaw.identity(); // Preserve the last snap in twoStartQuat; avoid applying it twice.
     lastPosition.copy(modelAnchor.position);lastQuat.copy(modelAnchor.quaternion);
     lastSampleValid=false;
   }
@@ -110,6 +117,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     if(pressed===hand.pressed && (!pressed || hand.active))return;
     hand.pressed=pressed;
     if(!pressed) {
+      hand.snapReady=true;
       if(!hand.active)return;
       hand.active=false;
       const remaining=activeHands();
@@ -127,6 +135,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       throwLinear.set(0,0,0);throwAngular.set(0,0,0);
     }
     hand.active=true;
+    hand.snapReady=true;
     if(activeHands().length===2) {
       beginTwo();
       onStatus('Both grip buttons held: spread your hands to enlarge Zelda, bring them closer to shrink.');
@@ -176,6 +185,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       targetPosition.copy(twoStartOffset).multiplyScalar(objectScale/twoStartScale)
         .applyQuaternion(rotationDelta).add(mid);
     }
+    // Keep a 30° joystick turn even after controller position/orientation changes.
+    targetQuat.premultiply(heldYaw).normalize();
     clampAgainstFloor(targetPosition,targetQuat);
     modelAnchor.position.copy(targetPosition);
     modelAnchor.quaternion.copy(targetQuat);
@@ -197,7 +208,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     lastSampleValid=true;
   }
   function attachModel(size) {
-    hands.forEach(h=>{h.active=false;h.pressed=false;});
+    hands.forEach(h=>{h.active=false;h.pressed=false;h.snapReady=true;});
+    heldYaw.identity();
     heldMode='none';
     if(body) {world.removeRigidBody(body);body=null;collider=null;}
     baseHalf.copy(size).multiplyScalar(0.5);
@@ -218,7 +230,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     lastSampleValid=false;
   }
   function releaseAll() {
-    hands.forEach(h=>{h.active=false;h.pressed=false;});
+    hands.forEach(h=>{h.active=false;h.pressed=false;h.snapReady=true;});
+    heldYaw.identity();
     if(body && heldMode!=='none') {
       heldMode='none';
       body.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
@@ -241,17 +254,58 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     body.setAngvel({x:0,y:0,z:0},true);
     throwLinear.set(0,0,0);throwAngular.set(0,0,0);
   }
+  function pollGrips() {
+    if(!renderer.xr.isPresenting || !body)return;
+    // WebXR squeeze events normally drive this; gamepad state is the fallback.
+    // Running this before movement prevents a simultaneous grip+stick action
+    // from briefly moving the player instead of manipulating the held model.
+    for(const hand of hands) {
+      const button=hand.source?.gamepad?.buttons?.[1];
+      if(!button)continue;
+      const pressed=!!(button.pressed || button.value>0.65);
+      if(hand.pressed!==pressed)setPressed(hand,pressed);
+      else if(pressed && !hand.active)setPressed(hand,true);
+    }
+  }
+  function isHolding(handedness) {
+    return hands.some(hand=>hand.active && hand.source?.handedness===handedness);
+  }
+  function stickX(gamepad) {
+    const a=gamepad?.axes||[];
+    const valid=(x,y)=>Number.isFinite(a[x])&&Number.isFinite(a[y]);
+    const primary=valid(2,3)?{x:a[2],y:a[3]}:null;
+    const secondary=valid(0,1)?{x:a[0],y:a[1]}:null;
+    if(primary && (Math.abs(primary.x)>.12||Math.abs(primary.y)>.12))return primary.x;
+    if(secondary && (Math.abs(secondary.x)>.12||Math.abs(secondary.y)>.12))return secondary.x;
+    return (primary||secondary||{x:0}).x;
+  }
+  function updateHeldThumbsticks() {
+    for(const hand of hands) {
+      if(!hand.active || !hand.source?.gamepad) {
+        hand.snapReady=true;
+        continue;
+      }
+      const x=stickX(hand.source.gamepad);
+      if(Math.abs(x)<.30) {
+        hand.snapReady=true; // Must centre the stick before the next turn.
+        continue;
+      }
+      if(hand.snapReady && Math.abs(x)>.70) {
+        hand.snapReady=false;
+        const direction=x>0?1:-1;
+        heldYaw.premultiply(yawStep.setFromAxisAngle(worldUp,direction*Math.PI/6)).normalize();
+        // Discrete joystick rotations should not create a 30°/frame throw spin.
+        throwAngular.set(0,0,0);
+        lastSampleValid=false;
+        onStatus('Zelda rotated 30° '+(direction>0?'right':'left')+'. Centre the held-hand joystick for another step.');
+      }
+    }
+  }
   function update(dt) {
     if(!body)return;
-    // Squeeze WebXR events are preferred. Standard gamepad button 1 is a backup
-    // for browsers that expose the grip button without reliable squeeze events.
     if(renderer.xr.isPresenting) {
-      for(const hand of hands) {
-        const button=hand.source?.gamepad?.buttons?.[1];
-        if(button && hand.pressed !== (button.pressed || button.value>0.65))
-          setPressed(hand,button.pressed || button.value>0.65);
-        else if(hand.pressed && !hand.active) setPressed(hand,true);
-      }
+      pollGrips();
+      updateHeldThumbsticks();
       if(activeHands().length)moveGrabbed(dt);
     }
     accumulator+=Math.min(Math.max(dt,0),0.05);
@@ -259,6 +313,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     while(accumulator>=1/60 && steps<3) {world.step();accumulator-=1/60;steps++;}
     if(!activeHands().length)syncAnchorFromBody();
   }
+
   renderer.xr.addEventListener('sessionend',releaseAll);
-  return {attachModel,update,reset,releaseAll};
+  return {attachModel,update,reset,releaseAll,pollGrips,isHolding};
 }
