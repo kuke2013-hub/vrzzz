@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createGrabPhysics } from './physics-grab.js?v=2';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -15,7 +16,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType('local-floor'); // All dimensions and controller movement are real metres.
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = false; // No visible stage or contact shadow in passthrough.
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 stage.appendChild(renderer.domElement);
 
@@ -45,29 +46,44 @@ scene.add(key);
 // 1.67m long, 0.80m high and 1.23m wide. Do NOT stretch it to 1.7m tall.
 // The user requested human scale, not a standing pose or animation.
 const modelAnchor = new THREE.Group();
-modelAnchor.position.set(0, 0, -2.0);
+modelAnchor.position.set(0, 0.4, -2.0);
 modelAnchor.rotation.y = -Math.PI / 2; // Turn the character's head (+X) toward the user (+Z).
 scene.add(modelAnchor);
-let avatar = null;
+let avatar = null, physics = null, modelSize = null;
+const physicsReady = createGrabPhysics({renderer,rig,modelAnchor,onStatus:setStatus})
+  .then(instance => {
+    physics=instance;
+    if(modelSize)physics.attachModel(modelSize);
+  })
+  .catch(error => {
+    console.error('Rapier physics could not initialize',error);
+    setStatus('Physics failed to initialise: '+error.message);
+  });
 const loader = new GLTFLoader();
 function placeLoadedModel(root) {
-  if (avatar) modelAnchor.remove(avatar);
-  avatar = root;
-  const rawBounds = new THREE.Box3().setFromObject(root);
-  const rawSize = rawBounds.getSize(new THREE.Vector3());
-  const humanLength = rawSize.x; // The supplied mesh is an approximately human-length crouched pose.
-  const scale = humanLength > .001 ? THREE.MathUtils.clamp(1.67 / humanLength, .3, 4) : 1;
-  root.scale.multiplyScalar(scale);
+  if(avatar)modelAnchor.remove(avatar);
+  avatar=root;
+  // Original model is already in a human-length crouched pose; do not stretch it upright.
+  const rawBounds=new THREE.Box3().setFromObject(root);
+  const rawSize=rawBounds.getSize(new THREE.Vector3());
+  const normalization=rawSize.x>.001?THREE.MathUtils.clamp(1.67/rawSize.x,.3,4):1;
+  root.scale.multiplyScalar(normalization);
   root.updateMatrixWorld(true);
-  const bounds = new THREE.Box3().setFromObject(root);
-  const centre = bounds.getCenter(new THREE.Vector3());
-  root.position.x -= centre.x;
-  root.position.z -= centre.z;
-  root.position.y -= bounds.min.y;
-  root.traverse((part) => {if (part.isMesh) {part.castShadow = true; part.receiveShadow = true;}});
+  const bounds=new THREE.Box3().setFromObject(root);
+  const centre=bounds.getCenter(new THREE.Vector3());
+  modelSize=bounds.getSize(new THREE.Vector3());
+  // The physics body's origin is at the model's geometric centre, not its feet.
+  // This allows free tumbling, turning upside-down, and bouncing on any side.
+  root.position.sub(centre);
+  root.traverse(part => {if(part.isMesh){part.castShadow=false;part.receiveShadow=false;}});
   modelAnchor.add(root);
-  setStatus(`Zelda loaded · ${rawSize.x.toFixed(2)}m pose length · ${rawSize.y.toFixed(2)}m height · floor aligned. Open Quest Browser to enter passthrough.`);
+  modelAnchor.position.set(0,modelSize.y/2,-2);
+  modelAnchor.rotation.set(0,-Math.PI/2,0);
+  modelAnchor.scale.setScalar(1);
+  if(physics)physics.attachModel(modelSize);
+  setStatus('Zelda loaded at human scale. Passthrough has no rendered floor. Squeeze a side grip to grab; use both grips to resize.');
 }
+
 // GitHub transfer stores this Quest-optimised GLB as eight byte-exact binary parts.
 // Reassemble them in memory; the resulting ArrayBuffer is a valid standalone GLB.
 async function loadSplitModel() {
@@ -109,32 +125,10 @@ $('assetFile').addEventListener('change', (event) => {
   else setStatus('Select the extracted .glb file (not the .zip).');
 });
 
-const floorGroup = new THREE.Group();
-scene.add(floorGroup);
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(6, 6),
-  new THREE.MeshBasicMaterial({color:0xb1cecf, transparent:true, opacity:.085, side:THREE.DoubleSide, depthWrite:false}));
-floor.rotation.x = -Math.PI/2;
-floor.position.y = -.012;
-floorGroup.add(floor);
-const shadow = new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.ShadowMaterial({opacity:.28}));
-shadow.rotation.x=-Math.PI/2; shadow.position.y=.006; shadow.receiveShadow=true;
-floorGroup.add(shadow);
-const grid = new THREE.GridHelper(6, 24, 0x76d6ca, 0x6c9e9c);
-grid.position.y = -.004;
-Array.isArray(grid.material) ? grid.material.forEach(m=>{m.transparent=true;m.opacity=.18;m.depthWrite=false;}) : (grid.material.transparent=true,grid.material.opacity=.18,grid.material.depthWrite=false);
-floorGroup.add(grid);
-const ring = new THREE.Mesh(new THREE.RingGeometry(1.25,1.266,128),
-  new THREE.MeshBasicMaterial({color:0x75dac4,side:THREE.DoubleSide,transparent:true,opacity:.45,depthWrite:false}));
-ring.rotation.x=-Math.PI/2;ring.position.set(0,.008,-2);floorGroup.add(ring);
-$('floor').addEventListener('click',()=>{floorGroup.visible=!floorGroup.visible;$('floor').textContent=`Floor: ${floorGroup.visible?'on':'off'}`;});
+// Floor exists ONLY in the Rapier physics world (y=0). The Three.js scene
+// deliberately renders no floor, no grid, no ring, and no shadow catcher.
 
-// Two controller models are parented to the locomotion rig, as in london-flat-vr.
-for(let i=0;i<2;i++){
-  const c=renderer.xr.getController(i);rig.add(c);
-  const pointer=new THREE.Mesh(new THREE.CylinderGeometry(.005,.005,.28,7),
-    new THREE.MeshBasicMaterial({color:i?0xb7d4fd:0x86e8d4,transparent:true,opacity:.45}));
-  pointer.rotation.x=Math.PI/2;pointer.position.z=-.16;c.add(pointer);
-}
+// Controllers and their side-grip events are registered in physics-grab.js.
 const keys = new Set();
 window.addEventListener('keydown', e => {keys.add(e.code); if(e.code.startsWith('Arrow'))e.preventDefault();});
 window.addEventListener('keyup', e => keys.delete(e.code));
@@ -213,7 +207,8 @@ function updateDesktop(dt){
 function resetView(){
   rig.position.set(HOME.x,0,HOME.z);rig.rotation.y=0;snapTurnReady=true;
   if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
-  setStatus('View reset. Zelda is 2 metres ahead, aligned to the physical floor.');
+  physics?.reset();
+  setStatus('View and Zelda reset. Grab with one side grip; squeeze both grips and change hand spacing to resize.');
 }
 $('reset').addEventListener('click',resetView);
 
@@ -237,7 +232,8 @@ enter.addEventListener('click',async()=>{
     controls.enabled=false;
     camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
     enter.textContent='PASSTHROUGH ACTIVE';
-    setStatus('Mixed reality active. Left stick moves, right stick snap-turns.');
+    physics?.releaseAll();
+    setStatus('Passthrough active: invisible physics floor. Side grip to grab/throw; both side grips to resize.');
   }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
   finally{enter.disabled=false;}
 });
@@ -255,5 +251,6 @@ renderer.setAnimationLoop((time,frame)=>{
   previous=time;
   if(renderer.xr.isPresenting)updateXR(dt,frame);
   else{updateDesktop(dt);controls.update();}
+  physics?.update(dt);
   renderer.render(scene,camera);
 });
