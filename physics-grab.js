@@ -1,16 +1,12 @@
 import * as THREE from 'three';
 import RAPIER from 'https://cdn.jsdelivr.net/npm/@dimforge/rapier3d-compat@0.21.0/dist/rapier.mjs';
 
-// Mixed reality: the ONLY floor is a Rapier collision surface. No floor mesh,
-// shadow catcher, grid, ring, hit marker or controller ray is ever rendered.
+// No floor, gravity, collision stage or rendered scenery. A fixed collider
+// tracks Zelda's pose while idle, and turns kinematic only during gripping.
 export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) {
   await RAPIER.init();
-  const world = new RAPIER.World({x:0, y:0, z:0}); // Zero gravity: release is stationary.
+  const world = new RAPIER.World({x:0, y:0, z:0});
   world.timestep = 1 / 60;
-  const ground = world.createRigidBody(RAPIER.RigidBodyDesc.fixed()
-    .setTranslation(0,-0.10,0));
-  world.createCollider(RAPIER.ColliderDesc.cuboid(40,0.10,40)
-    .setFriction(0.72).setRestitution(0.58),ground);
 
   let body = null, collider = null, baseHalf = new THREE.Vector3(0.84,0.40,0.62);
   let objectScale = 1, accumulator = 0, heldMode = 'none';
@@ -141,7 +137,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       onStatus('Both grip buttons held: spread your hands to enlarge Zelda, bring them closer to shrink.');
     } else {
       beginOne(hand);
-      onStatus('Zelda grabbed. Move and rotate your hand; release the side grip to throw.');
+      onStatus('Zelda grabbed. Thumbstick X rotates 30°, Y walks forward/back. Release grip to leave Zelda floating in place.');
     }
   }
   // Zero gravity / frozen release: when the final grip is released,
@@ -159,12 +155,6 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     throwLinear.set(0,0,0);throwAngular.set(0,0,0);
     lastSampleValid=false;
     onStatus('Zelda released: frozen exactly in place, with no gravity or momentum.');
-  }
-  function clampAgainstFloor(pos,quat) {
-    const m=new THREE.Matrix4().makeRotationFromQuaternion(quat).elements;
-    const verticalExtent=objectScale*(Math.abs(m[1])*baseHalf.x+
-      Math.abs(m[5])*baseHalf.y+Math.abs(m[9])*baseHalf.z);
-    pos.y=Math.max(pos.y,verticalExtent+0.004);
   }
   function moveGrabbed(dt) {
     const group=activeHands();
@@ -190,7 +180,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     }
     // Keep a 30° joystick turn even after controller position/orientation changes.
     targetQuat.premultiply(heldYaw).normalize();
-    clampAgainstFloor(targetPosition,targetQuat);
+    // No ground clamping: release must preserve the exact position and
+    // orientation the user chose, including suspended and upside-down poses.
     modelAnchor.position.copy(targetPosition);
     modelAnchor.quaternion.copy(targetQuat);
     body.setNextKinematicTranslation(targetPosition);
@@ -227,8 +218,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     body=world.createRigidBody(RAPIER.RigidBodyDesc.fixed()
       .setTranslation(p.x,p.y,p.z)
       .setRotation({x:q.x,y:q.y,z:q.z,w:q.w}));
-    collider=world.createCollider(RAPIER.ColliderDesc.cuboid(baseHalf.x,baseHalf.y,baseHalf.z)
-      .setFriction(0.72).setRestitution(0.63).setDensity(1.1),body);
+    collider=world.createCollider(RAPIER.ColliderDesc.cuboid(baseHalf.x,baseHalf.y,baseHalf.z),body);
     throwLinear.set(0,0,0);throwAngular.set(0,0,0);
     lastSampleValid=false;
   }
@@ -297,7 +287,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
         hand.snapReady=false;
         const direction=x>0?1:-1;
         heldYaw.premultiply(yawStep.setFromAxisAngle(worldUp,direction*Math.PI/6)).normalize();
-        // Discrete joystick rotations should not create a 30°/frame throw spin.
+        // Keep the model's orientation stable when a discrete snap is applied.
         throwAngular.set(0,0,0);
         lastSampleValid=false;
         onStatus('Zelda rotated 30° '+(direction>0?'right':'left')+'. Centre the held-hand joystick for another step.');
