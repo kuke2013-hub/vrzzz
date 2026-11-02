@@ -7,11 +7,43 @@ or restored even though Pages serves only the latest version.
 
 | Version | Release | Changes | Source |
 | --- | --- | --- | --- |
+| **8.0** | 2 Nov 2026 | **Right-hand wrist pitch UP/DOWN added** during two-hand resize, alongside existing left/right roll. Changes use controller-local two-axis rotation with hand-line swing and 30° joystick turns preserved. Version number is prominent in the main heading; includes a [version-specific entry page](https://kuke2013-hub.github.io/vrzzz/v8.html) for cached-home-page situations. | [Pitch + roll implementation](https://github.com/kuke2013-hub/vrzzz/commit/04a2e28bc02741fabd19375cc6f37416465fe14b) |
 | **7.0** | 2 Nov 2026 | **Two-hand resize + right-wrist twist simultaneously.** Preserve the line-between-hands swing, track wrist roll from the *right* controller as the priority source, and compose both into the model transform. Right thumbstick 30° rotations remain in the combined frame. | [Two-hand twist implementation](https://github.com/kuke2013-hub/vrzzz/commit/7f7e01ab1423d2e4b118ab950ac9feb91cf0bbb4) |
 | **6.0** | 2 Nov 2026 | **Fix wrist-axis mismatch after repeated 30° model turns.** Joystick yaw is converted into the active controller's *grab-relative* orientation. Both one-hand grabbing and two-hand scaling retain wrist/hand alignment. No gravity or visible floor. | [Rotation fix commit](https://github.com/kuke2013-hub/vrzzz/commit/f7e7e23b8cfe3d26fb8cea4387621067076349de) |
 | **5.0** | 2 Nov 2026 | Forward/back walking preserved on **either** thumbstick while its grip is holding Zelda; release freezes Zelda in mid-air; no floor collider. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/f72ec911814adb42617127404df583be77a31094) |
 | **4.0** | 2 Nov 2026 | Holding Zelda redirects the held controller's horizontal thumbstick to 30° model yaw rather than locomotion/view turning. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/4596c17769876a42a6d2c2aaf76044d3e9391b86) |
 | **3.0** | 2 Nov 2026 | Pure passthrough, grip pickup, two-hand resizing and the original physics experiment. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/f71ca02048d36d3990d5c10fcf42c65f79e81ce3) |
+
+## Version 8.0 — add wrist pitch while resizing
+
+With both side-grip buttons held, hand separation controls size, the hand-to-hand
+direction provides the main swing, and **right-wrist up/down pitch and left/right
+roll are both tracked**. They can occur simultaneously. The right-hand input is
+prioritized for these two wrist axes; the left hand controls size and the
+hand-line direction along with the right hand.
+
+The right controller's current orientation is compared to the orientation
+expected from the hand-line swing alone. The residual is expressed in the
+right controller's local coordinates. A quaternion swing–twist decomposition
+removes only the local-Y yaw component, retaining both local-X pitch and
+local-Z roll. This two-axis residual is transformed to world coordinates and
+combined with the hand-line swing. The result drives Zelda's orientation and
+her offset about the midpoint between the hands.
+
+**Version visibility:** The GitHub source previously contained the Version 7
+label, but the user's Quest browser did not display it. This is consistent
+with either a cached page or an old GitHub Pages deployment, and the live
+page could not be independently retrieved to distinguish the cause. Version 8
+therefore displays its number in both the **large heading** and the **footer**,
+and adds [v8.html](https://kuke2013-hub.github.io/vrzzz/v8.html) as a separate
+entry point.
+
+### Source tests
+
+The updated transform passed mathematical cases for neutral grip, 35° isolated
+wrist pitch, 40° isolated wrist roll, 50° hand-line swing, 40° isolated wrist
+yaw (properly excluded), and pitch over a rotated grip. Both JavaScript
+modules passed syntax checks. Physical Quest 3 tracking is unverified.
 
 ## Version 7.0 — simultaneous two-hand resize and right-wrist roll
 
