@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGrabPhysics } from './physics-grab.js?v=10';
+import { createGrabPhysics } from './physics-grab.js?v=10.1';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -81,7 +81,7 @@ function placeLoadedModel(root) {
   modelAnchor.rotation.set(0,-Math.PI/2,0);
   modelAnchor.scale.setScalar(1);
   if(physics)physics.attachModel(modelSize);
-  setStatus('Zelda VR v10: Left stick X moves Zelda sideways, either Y pulls/pushes. Both grips scale tiny to skyscraper size.');
+  setStatus('Zelda VR v10.1: Left stick X moves Zelda sideways, either Y pulls/pushes. Both grips resize linearly from 10% to 350%.');
 }
 
 // GitHub transfer stores this Quest-optimised GLB as eight byte-exact binary parts.
@@ -224,7 +224,7 @@ function resetView(){
   rig.position.set(HOME.x,0,HOME.z);rig.rotation.y=0;snapTurnReady=true;
   if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
   physics?.reset();
-  setStatus('Version 10 reset. Left X moves Zelda sideways, either Y pulls/pushes. Two-hand stretch rescales across an extreme range.');
+  setStatus('Version 10.1 reset. Left X moves Zelda sideways, either Y pulls/pushes. Two-hand resizing is 10% to 350%.');
 }
 $('reset').addEventListener('click',resetView);
 
@@ -249,7 +249,7 @@ enter.addEventListener('click',async()=>{
     camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
     enter.textContent='PASSTHROUGH ACTIVE';
     physics?.releaseAll();
-    setStatus('Zelda VR v10: Left stick moves Zelda left/right; either stick Y pulls/pushes. Two grips resize from dot to gigantic.');
+    setStatus('Zelda VR v10.1: Left X moves Zelda sideways; either stick Y pulls/pushes. Both grips resize 10%–350%.');
   }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
   finally{enter.disabled=false;}
 });
