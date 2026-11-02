@@ -7,6 +7,7 @@ or restored even though Pages serves only the latest version.
 
 | Version | Release | Changes | Source |
 | --- | --- | --- | --- |
+| **11.2** | 2 Nov 2026 | Remove 3m grab-distance cap: aim at Zelda and squeeze either grip to select her at any visible distance, preserving 10%–350% linear scaling and every other control. | [GitHub commits](https://github.com/kuke2013-hub/vrzzz/commits/main/) |
 | **11.1** | 2 Nov 2026 | **Correct minimum resizing bound to 10% (maximum 350%)**, retaining linear two-hand scaling and all Version 10 joystick/wrist behaviour. Reconciles a conflicting Version 11 change that had restored 25%. | [GitHub revision history](https://github.com/kuke2013-hub/vrzzz/commits/main/) |
 | **11.0** | 2 Nov 2026 | **Restore the original 25%–350% two-hand resize limits**, with linear hand-spacing response. Preserve all Version 10 controls and right-wrist pitch/roll. Corrects the intermediate v10.1 10% minimum. | [Source correction](https://github.com/kuke2013-hub/vrzzz/commit/4c400efed6f2264ffbd60cc152715bc7f29089f9) |
 | **10.1** | 2 Nov 2026 | **Restore linear two-hand resizing within 10%–350%.** Remove Version 10 nonlinear, microscopic/giant size limits; preserve all other joystick, wrist, grab and no-gravity controls. | [Resizing fix](https://github.com/kuke2013-hub/vrzzz/commit/d2a6a9097eb61d50fb3cafda61adcf582b631657) |
@@ -33,6 +34,15 @@ right-wrist pitch/roll works during two-hand resizing, passthrough remains
 transparent, and release freezes the model without gravity.
 
 [Open Version 11](https://kuke2013-hub.github.io/vrzzz/v11.html).
+
+## Version 11.2 — remote grab without distance limit
+
+Removed the hard-coded 3m limit on a controller's ray-box intersection.
+Either grip can grab Zelda while pointing at her from any visible distance;
+the near-contact grab remains. Nothing teleports when first grabbed.
+Thumbstick motion, wrist controls, zero gravity and the 10%–350% linear
+resize limits are preserved. Current version-specific Quest entry:
+https://kuke2013-hub.github.io/vrzzz/v11-2.html
 
 ## Version 11.1 — user-selected 10%–350% resizing
 

@@ -10,7 +10,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
 
   let body = null, baseHalf = new THREE.Vector3(0.84,0.40,0.62);
   let objectScale = 1, accumulator = 0, heldMode = 'none';
-  // Version 11.0: restore the original linear hand-distance resize control.
+  // Version 11.2: restore the original linear hand-distance resize control.
   // User requested linear two-hand resize limits: 10% to 350%.
   const MIN_SCALE = 0.10, MAX_SCALE = 3.50;
   const MODEL_SIDE_SPEED = 1.4;
@@ -144,12 +144,12 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     const localHand=modelAnchor.worldToLocal(handPos.clone());
     const nearest=localBox.clampPoint(localHand,new THREE.Vector3());
     if(nearest.distanceTo(localHand)*objectScale < 0.38)return true;
-    // Also permit aiming at Zelda from short range; no visual pointer is drawn.
+    // Aim + squeeze to grab from any distance. Still requires a ray hit;
+    // nearby touch grabs also work. No visible pointer is drawn.
     handRay.origin.copy(handPos);
     handRay.direction.set(0,0,-1).applyQuaternion(handQuat).normalize();
     const localRay=handRay.clone().applyMatrix4(modelAnchor.matrixWorld.clone().invert());
-    const intersection=localRay.intersectBox(localBox,rayIntersection);
-    return !!intersection && intersection.distanceTo(localRay.origin)*objectScale <= 3.0;
+    return localRay.intersectBox(localBox,rayIntersection)!==null;
   }
   function beginOne(hand) {
     heldMode='one';
@@ -205,10 +205,10 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hand.snapReady=true;
     if(activeHands().length===2) {
       beginTwo();
-      onStatus('Version 11.0: spread/close both hands to resize Zelda linearly from 10% to 350%. Right-wrist pitch/roll and joystick controls remain unchanged.');
+      onStatus('Version 11.2: spread/close both hands to resize Zelda linearly from 10% to 350%. Right-wrist pitch/roll and joystick controls remain unchanged.');
     } else {
       beginOne(hand);
-      onStatus('Version 11.0: left stick X moves Zelda sideways; right held stick X rotates 30°. Either stick Y pulls/pushes Zelda.');
+      onStatus('Version 11.2: left stick X moves Zelda sideways; right held stick X rotates 30°. Either stick Y pulls/pushes Zelda.');
     }
   }
   // Zero gravity / frozen release: when the final grip is released,

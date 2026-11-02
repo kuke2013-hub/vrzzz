@@ -1,6 +1,6 @@
 # Zelda · Quest 3 mixed reality
 
-**Current version: 11.1 — Linear two-hand resize restricted to 10%–350%; joystick and wrist controls unchanged.** [See version history](VERSIONS.md).
+**Current version: 11.2 — Grab Zelda from any visible distance; preserve 10%–350% linear resizing and all controls.** [See version history](VERSIONS.md).
 The app displays its current version beneath the title on the live page; each
 subsequent update should bump the displayed number and add a history entry.
 
@@ -22,7 +22,7 @@ including in mid-air or upside down. She does not fall, bounce, drift or spin.
 | Left thumbstick left/right | **Move Zelda left/right** | **Move Zelda left/right** (never player strafe) |
 | Right thumbstick forward/back | **Pull Zelda closer / push Zelda farther** | **Same pull/push** (does not walk the viewer) |
 | Right thumbstick left/right | Turn viewpoint 30° | **Rotate Zelda 30° left/right**, not the viewpoint |
-| Side grip (squeeze button) | Grab Zelda when near or aiming at her | Keep Zelda attached to the hand |
+| Side grip (squeeze button) | Grab Zelda when near, or aim + squeeze at any visible distance | Keep Zelda attached to the hand |
 | Release last side grip | — | Freeze Zelda's exact position, scale and rotation |
 | Both grips simultaneously | — | Spread/close hands for **linear resize (10%–350%)** and use right-wrist pitch + roll |
 
@@ -66,6 +66,16 @@ micro-dot or giant-building scaling. Right-wrist pitch/roll, thumbstick model
 movement, 30° right-hand model turns, passthrough and stationary release remain
 unchanged. The v10.1 intermediate release briefly used a 10% minimum; v11.0
 corrects it back to the original 25%.
+
+## Version 11.2: distance-unlimited remote grip
+
+The controller pointing ray no longer has a 3m distance cap. Aim at Zelda
+and squeeze either controller's side grip to pick her up from any
+visible/renderable distance. Near-hand grabbing still works. The model
+keeps its position when you begin holding it, so you can use the existing
+thumbstick pull/push controls to bring it closer afterward. The pointing
+ray must intersect the model, and WebXR precision/rendering limits still
+apply. Resizing remains linear at 10%–350%; all other controls are unchanged.
 
 ## Version 10.1: restored resizing range (historical)
 
