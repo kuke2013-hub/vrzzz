@@ -1,6 +1,6 @@
 # Zelda · Quest 3 mixed reality
 
-**Current version: 12.0 — Accurate Quest remote pointing, full one/two-hand manipulation; linear resize still 10%–350%.** [See version history](VERSIONS.md).
+**Current version: 13.0 — Remote model UP/DOWN/LEFT/RIGHT movement uses controller pointing changes as well as physical hand movement. Resizing remains linear 10%–350%.** [See version history](VERSIONS.md).
 The app displays its current version beneath the title on the live page; each
 subsequent update should bump the displayed number and add a history entry.
 
@@ -66,6 +66,25 @@ micro-dot or giant-building scaling. Right-wrist pitch/roll, thumbstick model
 movement, 30° right-hand model turns, passthrough and stationary release remain
 unchanged. The v10.1 intermediate release briefly used a 10% minimum; v11.0
 corrects it back to the original 25%.
+
+## Version 13.0 — remote motion with either or both hands
+
+Quest hardware testing showed that Version 12 could rotate distant Zelda but
+not reliably move her left/right or up/down. Version 13 adds movement from
+changes in the controller **target-ray pointing direction**, while preserving
+the existing positional displacement of the controller grip.
+
+The ray-direction change is projected onto a plane perpendicular to the
+starting ray and scaled by the model's grab distance. This allows modest
+pointing movements to shift a faraway Zelda visibly up, down or sideways.
+During two-handed remote grabbing, changes from **both** controllers'
+target rays contribute, along with the physical hand midpoint displacement.
+A wrist roll about the ray axis does not translate the model.
+
+The previous grip selection, one/two-hand wrist rotation, thumbsticks,
+zero gravity, and **10%–350%** linear scaling are unchanged. Literal infinite
+distance is impossible to render; these controls work within Quest tracking
+and rendering limits.
 
 ## Version 12.0: true remote grabbing and manipulation
 

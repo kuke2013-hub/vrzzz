@@ -7,6 +7,7 @@ or restored even though Pages serves only the latest version.
 
 | Version | Release | Changes | Source |
 | --- | --- | --- | --- |
+| **13.0** | 2 Nov 2026 | Distant Zelda now translates using changes in the Quest controller pointing rays as well as physical hand displacement; either or both hands move her UP/DOWN/LEFT/RIGHT. Previous 10%–350% resize, rotation and joystick controls retained. | [GitHub commits](https://github.com/kuke2013-hub/vrzzz/commits/main/) |
 | **12.0** | 2 Nov 2026 | Fix Quest target-ray remote selection, add angular aim assistance, enable two-handed remote join and distance-responsive translation independent of wrist twisting. Maintain 10%–350% scaling and all controls. | [GitHub history](https://github.com/kuke2013-hub/vrzzz/commits/main/) |
 | **11.2** | 2 Nov 2026 | Remove 3m grab-distance cap: aim at Zelda and squeeze either grip to select her at any visible distance, preserving 10%–350% linear scaling and every other control. | [GitHub commits](https://github.com/kuke2013-hub/vrzzz/commits/main/) |
 | **11.1** | 2 Nov 2026 | **Correct minimum resizing bound to 10% (maximum 350%)**, retaining linear two-hand scaling and all Version 10 joystick/wrist behaviour. Reconciles a conflicting Version 11 change that had restored 25%. | [GitHub revision history](https://github.com/kuke2013-hub/vrzzz/commits/main/) |
@@ -35,6 +36,20 @@ right-wrist pitch/roll works during two-hand resizing, passthrough remains
 transparent, and release freezes the model without gravity.
 
 [Open Version 11](https://kuke2013-hub.github.io/vrzzz/v11.html).
+
+## Version 13.0 — distant motion along vertical and horizontal axes
+
+Hardware feedback confirmed that Version 12 remote pickup/rotation worked
+but translation was not visible. Version 13 responds to **changes in
+controller pointing direction** in addition to physical position changes.
+The pointing delta is projected into the plane perpendicular to the initial
+ray and scaled by distance, so up/down/left/right pointing motion moves
+Zelda visibly at long range. With two grips, both controller directions
+contribute equally alongside hand midpoint translation.
+
+Right-wrist rotation, 30-degree turns, depth/side stick movement, frozen
+release and 10%–350% linear resizing remain unchanged. Entry page:
+https://kuke2013-hub.github.io/vrzzz/v13.html
 
 ## Version 12.0 — full remote manipulation
 
