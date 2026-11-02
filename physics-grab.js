@@ -10,10 +10,9 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
 
   let body = null, baseHalf = new THREE.Vector3(0.84,0.40,0.62);
   let objectScale = 1, accumulator = 0, heldMode = 'none';
-  // Very small dot through building/landmark scale. Not literal infinity:
-  // Three.js/WebXR floats and the headset's depth buffer need finite bounds.
-  const MIN_SCALE = 1e-5, MAX_SCALE = 1e4;
-  const SCALE_EXPONENT = 4; // A comfortable hand spread reaches large scales.
+  // Version 10.1: restore the original linear hand-distance resize control.
+  // The requested minimum is now 10% instead of the former 25%.
+  const MIN_SCALE = 0.10, MAX_SCALE = 3.50;
   const MODEL_SIDE_SPEED = 1.4;
   const localBox = new THREE.Box3();
   const handPos = new THREE.Vector3(), handQuat = new THREE.Quaternion();
@@ -170,7 +169,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     handTransform(pair[0],pa,qa);handTransform(pair[1],pb,qb);
     mid.copy(pa).add(pb).multiplyScalar(0.5);
     line.subVectors(pb,pa);
-    twoStartDistance=Math.max(0.05,line.length());
+    twoStartDistance=Math.max(0.10,line.length());
     twoStartLine.copy(line).normalize();
     twoStartRightQuat.copy(qb); // Neutral wrist roll at the precise grab instant.
     twoStartScale=objectScale;
@@ -206,10 +205,10 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hand.snapReady=true;
     if(activeHands().length===2) {
       beginTwo();
-      onStatus('Version 10: Spread/close both hands for extreme resize; right wrist pitch/roll; left stick X moves Zelda sideways.');
+      onStatus('Version 10.1: spread/close both hands to resize Zelda linearly from 10% to 350%. Right-wrist pitch/roll and joystick controls remain unchanged.');
     } else {
       beginOne(hand);
-      onStatus('Version 10: left stick X moves Zelda sideways; right held stick X rotates 30°. Either stick Y pulls/pushes Zelda.');
+      onStatus('Version 10.1: left stick X moves Zelda sideways; right held stick X rotates 30°. Either stick Y pulls/pushes Zelda.');
     }
   }
   // Zero gravity / frozen release: when the final grip is released,
@@ -242,9 +241,9 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       if(distance===null)return;
       mid.copy(pa).add(pb).multiplyScalar(0.5);
       const ratio=distance/twoStartDistance;
-      // Nonlinear fourth-power two-hand scaling allows enormous variations
-      // from normal hand motion; repeated re-grabs accumulate scale.
-      changeScale(twoStartScale*Math.pow(ratio,SCALE_EXPONENT));
+      // Linear spacing-to-size response (as before Version 10).
+      // Restrict scale to 10%-350% of normal size.
+      changeScale(twoStartScale*ratio);
       targetQuat.copy(twoHandFrame).multiply(twoStartQuat);
       // At huge scales, multiplying this offset by scale would fling Zelda
       // kilometres away from the user. Preserve her centre-relative offset
