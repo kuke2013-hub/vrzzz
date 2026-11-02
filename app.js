@@ -68,11 +68,39 @@ function placeLoadedModel(root) {
   modelAnchor.add(root);
   setStatus(`Zelda loaded · ${rawSize.x.toFixed(2)}m pose length · ${rawSize.y.toFixed(2)}m height · floor aligned. Open Quest Browser to enter passthrough.`);
 }
+// GitHub transfer stores this Quest-optimised GLB as eight byte-exact binary parts.
+// Reassemble them in memory; the resulting ArrayBuffer is a valid standalone GLB.
+async function loadSplitModel() {
+  const urls = Array.from({length:8}, (_,i) => `./assets/zelda.part${String(i+1).padStart(2,'0')}`);
+  try {
+    setStatus('Loading Zelda from eight embedded-model segments…');
+    const parts = await Promise.all(urls.map(async (url, i) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`Model segment ${i+1} returned HTTP ${response.status}`);
+      return new Uint8Array(await response.arrayBuffer());
+    }));
+    const size = parts.reduce((total, bytes) => total + bytes.byteLength, 0);
+    const combined = new Uint8Array(size);
+    let offset = 0;
+    for (const bytes of parts) { combined.set(bytes, offset); offset += bytes.byteLength; }
+    if (size !== 11668312) throw new Error(`Unexpected model size: ${size} bytes`);
+    const objectURL = URL.createObjectURL(new Blob([combined], {type:'model/gltf-binary'}));
+    loadURL(objectURL, true);
+  } catch(error) {
+    console.error('Could not reconstruct Zelda GLB', error);
+    setStatus(`Failed to load model segments: ${error.message}. You can still choose a local GLB below.`);
+  }
+}
 function loadURL(url, revoke = false) {
   setStatus('Loading Zelda model and embedded textures…');
   loader.load(url, (gltf) => {placeLoadedModel(gltf.scene); if(revoke) URL.revokeObjectURL(url);},
     (event) => {if(event.total) setStatus(`Loading Zelda… ${Math.round(event.loaded / event.total * 100)}%`);},
-    (error) => {if(revoke) URL.revokeObjectURL(url); console.error(error); setStatus('Model not found at assets/zelda.glb. Upload that GLB to the repository, or choose a local GLB below.');});
+    (error) => {
+      if(revoke) URL.revokeObjectURL(url);
+      if(url === './assets/zelda.glb') { loadSplitModel(); return; }
+      console.error(error);
+      setStatus('Could not decode Zelda GLB. Choose the extracted original GLB file below.');
+    });
 }
 loadURL('./assets/zelda.glb');
 $('assetFile').addEventListener('change', (event) => {
