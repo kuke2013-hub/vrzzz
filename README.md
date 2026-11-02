@@ -2,9 +2,11 @@
 
 A browser-based, room-scale WebXR mixed-reality viewer for the **uploaded Zelda GLB**. Uses the same Meta Quest locomotion implementation as the [`london-flat-vr`](https://github.com/kuke2013-hub/london-flat-vr) project: left stick moves in the direction of the tracked headset (up/down/sideways), and the right stick performs **30° snap turns** about the physical head position.
 
-## Important: add the model
+## Model installed
 
-Place the **extracted** `zelda sexy 3_0.glb` file in this repository as **`assets/zelda.glb`**. Its PBR colour, normal and ORM textures are already *embedded* in the GLB, so the separate files in the original ZIP are not needed for the web viewer. The app also supports loading a GLB manually on desktop using the local file picker.
+The model has been uploaded in **eight binary parts** (`assets/zelda.part01`–`assets/zelda.part08`), because of transfer-size limitations. The app downloads those parts and combines them in memory into a valid 11,668,312-byte GLB. The meshes are unchanged from the original, and the embedded colour/normal/PBR textures are resized for Meta Quest: colour and normal 2048 px, ORM 1024 px. The original GLB is preserved in the downloadable source bundle.
+
+If you prefer a standalone model file in the repository, manually upload the original extracted GLB as `assets/zelda.glb`; the viewer prefers it automatically. The app also supports loading a GLB manually on desktop using the local file picker.
 
 The source model is **crouched**, approximately **1.67m long, 0.80m high and 1.23m across**. It is already floor-up in the source coordinate system. Do **not** rotate it upright or stretch its height to 1.7m; the 0.8m height is correct for this pose. The scene automatically centers its bounds and places its lowest point on the reference-space floor. The character is located approximately 2m in front of the initial headset heading.
 
