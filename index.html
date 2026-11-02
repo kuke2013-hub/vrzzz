@@ -32,14 +32,14 @@
   <section id="panel">
     <div class="eyebrow">Mixed reality / WebXR</div>
     <h1>Zelda · Passthrough</h1>
-    <div class="sub">Life-size character on a floor-aligned stage. The real room remains visible in Meta Quest 3.</div>
+    <div class="sub">Life-size Zelda in your real room. No virtual floor, grid, or stage: only the character and passthrough.</div>
     <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
-    <div class="controls"><button id="reset" type="button">Reset view</button><button id="floor" type="button">Floor: on</button></div>
+    <div class="controls"><button id="reset" type="button">Reset view and Zelda</button></div>
     <div id="status" role="status">Preparing 3D scene…</div>
     <label id="filelabel" for="assetFile">Load GLB from device (desktop preview)</label><input id="assetFile" type="file" accept=".glb,model/gltf-binary">
-    <div class="hint"><strong>Quest controls</strong><br>Left stick: forward / backward / step sideways<br>Right stick: 30° snap-turn<br><br><strong>Desktop</strong><br>Drag to orbit · Scroll to zoom · <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> to move</div>
+    <div class="hint"><strong>Quest controls</strong><br>Side grip (squeeze): grab and rotate Zelda; release to throw and bounce<br>Both side grips: move hands apart to enlarge, together to shrink (25%–350%)<br>Left stick: move / step sideways<br>Right stick: 30° snap-turn<br><br><strong>Desktop</strong><br>Drag to orbit · Scroll to zoom · <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> to move</div>
   </section>
-  <div id="footer">Quest 3 · Real-size model · Real-world passthrough</div>
-  <script type="module" src="./app.js"></script>
+  <div id="footer">Quest 3 · Invisible collision floor · Grip, throw &amp; two-hand scale</div>
+  <script type="module" src="./app.js?v=2"></script>
 </body>
 </html>
