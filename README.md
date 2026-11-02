@@ -1,5 +1,9 @@
 # Zelda · Quest 3 mixed reality
 
+**Current version: 6.0 — Wrist-aligned rotation.** [See version history](VERSIONS.md).
+The app displays its current version beneath the title on the live page; each
+subsequent update should bump the displayed number and add a history entry.
+
 Open in Meta Quest Browser: https://kuke2013-hub.github.io/vrzzz/
 
 ## Environment
@@ -36,6 +40,11 @@ Grab uses the *side grip/squeeze* button, not the index trigger or thumbstick
 click. You can reach near the model or aim at it from up to 3m to initiate the
 grab, depending on your controller tracking. Zelda can be physically repositioned
 and rotated by moving a held controller as well as by thumbstick yaw.
+
+Version 6 corrects the snap-turn/wrist interaction: each 30° world-up rotation
+is baked into the current grab-relative offset instead of being layered over
+the controller's live pose. Wrist twisting therefore stays aligned with the
+tracked controller after repeated snaps, while the other controls are retained.
 
 ## Publishing and implementation
 
