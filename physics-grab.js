@@ -122,7 +122,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       hand.active=false;
       const remaining=activeHands();
       if(remaining.length===1)beginOne(remaining[0]);
-      else if(!remaining.length)releaseWithThrow();
+      else if(!remaining.length)freezeReleasedModel();
       return;
     }
     if(!canGrab(hand))return;
@@ -144,18 +144,21 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       onStatus('Zelda grabbed. Move and rotate your hand; release the side grip to throw.');
     }
   }
-  function releaseWithThrow() {
+  // Zero gravity / frozen release: when the final grip is released,
+  // Zelda becomes a fixed body exactly at her last held world-space pose.
+  // No falling, throwing, bouncing, drifting or further spin.
+  function freezeReleasedModel() {
     if(!body || heldMode==='none')return;
     heldMode='none';
-    body.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
-    body.setTranslation(modelAnchor.position,true);
-    body.setRotation(modelAnchor.quaternion,true);
-    const velocity=throwLinear.clone().clampLength(0,8);
-    const spin=throwAngular.clone().clampLength(0,14);
-    body.setLinvel(velocity,true);
-    body.setAngvel(spin,true);
+    const p=modelAnchor.position, q=modelAnchor.quaternion;
+    body.setTranslation({x:p.x,y:p.y,z:p.z},true);
+    body.setRotation({x:q.x,y:q.y,z:q.z,w:q.w},true);
+    body.setBodyType(RAPIER.RigidBodyType.Fixed,true);
+    body.setLinvel({x:0,y:0,z:0},true);
+    body.setAngvel({x:0,y:0,z:0},true);
+    throwLinear.set(0,0,0);throwAngular.set(0,0,0);
     lastSampleValid=false;
-    onStatus('Released: Zelda falls, tumbles and bounces on the invisible real-world floor.');
+    onStatus('Zelda released: frozen exactly in place, with no gravity or momentum.');
   }
   function clampAgainstFloor(pos,quat) {
     const m=new THREE.Matrix4().makeRotationFromQuaternion(quat).elements;
@@ -220,10 +223,10 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     localBox.min.copy(baseHalf).multiplyScalar(-1);
     localBox.max.copy(baseHalf);
     const p=modelAnchor.position,q=modelAnchor.quaternion;
-    body=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic()
+    // Start stationary in midair rather than letting Zelda fall before grabbing.
+    body=world.createRigidBody(RAPIER.RigidBodyDesc.fixed()
       .setTranslation(p.x,p.y,p.z)
-      .setRotation({x:q.x,y:q.y,z:q.z,w:q.w})
-      .setLinearDamping(0.06).setAngularDamping(0.22).setCcdEnabled(true));
+      .setRotation({x:q.x,y:q.y,z:q.z,w:q.w}));
     collider=world.createCollider(RAPIER.ColliderDesc.cuboid(baseHalf.x,baseHalf.y,baseHalf.z)
       .setFriction(0.72).setRestitution(0.63).setDensity(1.1),body);
     throwLinear.set(0,0,0);throwAngular.set(0,0,0);
@@ -234,9 +237,9 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     heldYaw.identity();
     if(body && heldMode!=='none') {
       heldMode='none';
-      body.setBodyType(RAPIER.RigidBodyType.Dynamic,true);
       body.setTranslation(modelAnchor.position,true);
       body.setRotation(modelAnchor.quaternion,true);
+      body.setBodyType(RAPIER.RigidBodyType.Fixed,true);
       body.setLinvel({x:0,y:0,z:0},true);
       body.setAngvel({x:0,y:0,z:0},true);
     }
