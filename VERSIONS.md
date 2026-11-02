@@ -7,6 +7,7 @@ or restored even though Pages serves only the latest version.
 
 | Version | Release | Changes | Source |
 | --- | --- | --- | --- |
+| **10.1** | 2 Nov 2026 | **Restore linear two-hand resizing within 10%–350%.** Remove Version 10 nonlinear, microscopic/giant size limits; preserve all other joystick, wrist, grab and no-gravity controls. | [Resizing fix](https://github.com/kuke2013-hub/vrzzz/commit/d2a6a9097eb61d50fb3cafda61adcf582b631657) |
 | **10.0** | 2 Nov 2026 | **Extreme fourth-power two-hand scaling** from 0.00001× (dot) to 10,000× (landmark). Left-stick X translates Zelda sideways instead of moving the player or turning Zelda. Wider camera/depth ranges; no oversized Rapier collider. | [Scaling and joystick implementation](https://github.com/kuke2013-hub/vrzzz/commit/c10e6c1ee52b6e756ca4cf37447e03629a486103) |
 | **9.0** | 2 Nov 2026 | **Pull or push Zelda with the vertical axis of EITHER thumbstick**, both when gripping and when not gripping. Back pulls Zelda toward you; forward sends her farther away. The headset stays still. Preserves two-hand scale, right wrist pitch/roll and horizontal stick turning. | [Model-depth implementation](https://github.com/kuke2013-hub/vrzzz/commit/c365346c1b3835d631fcc3b39068b751a9c019aa) |
 | **8.0** | 2 Nov 2026 | **Right-hand wrist pitch UP/DOWN added** during two-hand resize, alongside existing left/right roll. Changes use controller-local two-axis rotation with hand-line swing and 30° joystick turns preserved. Version number is prominent in the main heading; includes a [version-specific entry page](https://kuke2013-hub.github.io/vrzzz/v8.html) for cached-home-page situations. | [Pitch + roll implementation](https://github.com/kuke2013-hub/vrzzz/commit/04a2e28bc02741fabd19375cc6f37416465fe14b) |
@@ -16,7 +17,23 @@ or restored even though Pages serves only the latest version.
 | **4.0** | 2 Nov 2026 | Holding Zelda redirects the held controller's horizontal thumbstick to 30° model yaw rather than locomotion/view turning. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/4596c17769876a42a6d2c2aaf76044d3e9391b86) |
 | **3.0** | 2 Nov 2026 | Pure passthrough, grip pickup, two-hand resizing and the original physics experiment. | [Checkpoint](https://github.com/kuke2013-hub/vrzzz/commit/f71ca02048d36d3990d5c10fcf42c65f79e81ce3) |
 
-## Version 10.0 — extreme size and sideways model controls
+## Version 10.1 — restore linear resizing
+
+Following user testing, the extreme model-scaling experiment in Version 10
+has been reverted **only for two-hand resizing**. Separating or closing
+both grips now adjusts size **linearly** with hand spacing and clamps size
+between **0.10× and 3.50×** normal. This replaces the fourth-power
+0.00001×–10,000× scaling.
+
+All other Version 10 changes remain: left-stick X moves Zelda sideways
+rather than the player, either thumbstick Y pulls/pushes Zelda whether
+gripped or not, right-stick X rotates Zelda 30° when right grip is active,
+right wrist pitches and rolls during dual-hand grabbing, and release
+remains zero-gravity/fixed in space. The separate Version 10.1 entry page
+is [v10-1.html](https://kuke2013-hub.github.io/vrzzz/v10-1.html).
+
+## Version 10.0 — extreme size and sideways model controls (historical)
+
 
 The previous linear 0.25×–3.5× resizing limit has been replaced by
 a fourth-power relationship between the distance of the two grips and their
