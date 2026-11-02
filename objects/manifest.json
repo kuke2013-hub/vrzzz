@@ -18,6 +18,15 @@
       "description": "A full-size textured winged woman model in Meta Quest 3 passthrough, with the shared Zelda VR v13 controls.",
       "status": "ready",
       "created": "2026-11-02"
+    },
+    {
+      "id": "daphne-sexy",
+      "title": "Daphne Sexy",
+      "url": "./objects/daphne-sexy/",
+      "model": "./objects/daphne-sexy/assets/daphne-sexy.glb",
+      "description": "A textured character model in Quest 3 passthrough with the shared Zelda VR v13 controls and brightness adjustment.",
+      "status": "pending-model-upload",
+      "created": "2026-11-02"
     }
   ]
 }
