@@ -1,33 +1,63 @@
-# Zelda · Quest 3 passthrough
+# Zelda · Quest 3 Mixed Reality (grab / throw / scale)
 
-A browser-based, room-scale WebXR mixed-reality viewer for the **uploaded Zelda GLB**. Uses the same Meta Quest locomotion implementation as the [`london-flat-vr`](https://github.com/kuke2013-hub/london-flat-vr) project: left stick moves in the direction of the tracked headset (up/down/sideways), and the right stick performs **30° snap turns** about the physical head position.
+Live site (when GitHub Pages is enabled for main / root):
+https://kuke2013-hub.github.io/vrzzz/
 
-## Model installed
-
-The repository contains a **standalone, ready-to-render `assets/zelda.glb`** (11,668,312 bytes) and eight optional binary backup parts (`assets/zelda.part01`–`assets/zelda.part08`). The [reassembly workflow](.github/workflows/assemble-model.yml) has run successfully and reconstructed the standalone file, verifying SHA-256 `6da87f491b37c80eab5cebef794476468ea1af08bc253b949a9c33646aef4739`. The web app loads the standalone GLB, falling back to the segments if needed.
-
-The character mesh is unchanged from the original. The embedded colour/normal/PBR textures are reduced for Meta Quest: colour and normal 2048 px, ORM 1024 px. The original, full-resolution GLB is preserved in the downloadable source bundle. The app also supports loading a local GLB from the file picker.
-
-The source model is **crouched**, approximately **1.67m long, 0.80m high and 1.23m across**. It is already floor-up in the source coordinate system. Do **not** rotate it upright or stretch its height to 1.7m; the 0.8m height is correct for this pose. The scene automatically centers its bounds and places its lowest point on the reference-space floor. The character is located approximately 2m in front of the initial headset heading.
-
-## Publish
-
-GitHub → repository **Settings → Pages → Build and deployment → Deploy from a branch** → choose `main` and `/(root)` → Save. The expected site address is `https://kuke2013-hub.github.io/vrzzz/` *after Pages is successfully enabled and deployed*.
-
-In Meta Quest Browser, open that HTTPS page and tap **ENTER PASSTHROUGH**. The browser must support WebXR `immersive-ar` with `local-floor`; the app does not silently fall back to opaque VR because that would hide the real environment. Grant permission when asked.
+The **real-world camera passthrough is the only background** in Quest 3.
+No virtual flooring, grid, ring, shadow catcher, controller markers or scenery is
+rendered. A Rapier collision floor exists only in the physics simulation at y=0
+so Zelda can fall, roll and bounce off the floor while the real room stays visible.
 
 ## Controls
 
-| Device | Action |
-|---|---|
-| Quest left thumbstick up/down | Walk forwards / backwards, relative to real headset orientation |
-| Quest left thumbstick left/right | Strafe left/right |
-| Quest right thumbstick left/right | Snap-turn world heading 30° per deflection (release to re-arm) |
-| Desktop mouse drag / scroll | Orbit and zoom |
-| Desktop W/A/S/D | Move relative to desktop camera |
-| Reset view button | Return locomotion offset and turn heading to original state |
-| Floor button | Show/hide subtle 6m stage, grid and contact shadow |
+| Quest 3 control | Action |
+| --- | --- |
+| Left thumbstick forward/back | Walk relative to headset forward direction |
+| Left thumbstick sideways | Step left or right |
+| Right thumbstick sideways | Snap-turn the scene 30°; center stick before next turn |
+| Left **side grip / squeeze** near Zelda, or aiming at her | Pick up and rotate the whole model while holding the button |
+| Release the last side grip | Throw / drop; gravity, collision, inertia and bounce resume |
+| Hold **both side grips** on Zelda | Two-hand scaling: stretch hands apart to enlarge, move closer to shrink; simultaneously reorient and reposition |
+| Release one of two grips | Continue holding with the other hand without teleporting |
+| Reset view and Zelda | Reset position, rotation, linear/angular velocity and scale |
 
-## Technical notes
+Scaling range: **0.25× to 3.5×** the original human scale. The physics collision
+shape is resized together with the visible GLB; throwing a larger or smaller
+character still uses the new collision size. The model is a crouched human-size
+pose: around 1.67m long and approximately 0.8m high, rather than a standing
+1.67m-tall character.
 
-Three.js r186, glTF/GLB PBR loader, HTML/CSS/JS hosted as static files. Rendering uses a transparent WebGL canvas and `immersive-ar` mode for passthrough. `local-floor` makes `y=0` equal to the detected physical floor; no room mesh, wall occlusion or physics collision is implied. Accurate passthrough/joystick support depends on browser/headset firmware and must be tested on a physical Quest 3.
+**Important interaction:** The side buttons are the Quest Touch controller
+**grip/squeeze buttons**, not the index-finger triggers or the joystick clicks.
+The hand must touch/approach the model, or point at it within 3m to begin a
+grab. Once two grips are holding it, hand spacing controls size. Physics uses a
+cuboid envelope around the character, so collision is approximate rather than
+per-vertex, and bouncing is visibly stylized rather than a ragdoll simulation.
+
+## Deployment
+
+Open GitHub → repository **Settings → Pages** and choose **Deploy from a branch**,
+branch **main**, folder **/(root)**, then Save. Quest Browser requires HTTPS and
+WebXR **immersive-ar** with **local-floor** enabled.
+
+## Project
+
+* index.html — WebXR entry UI, desktop preview.
+* app.js — model load (single 11,668,312-byte GLB, with eight split-part
+  fallback), calibrated human scale, headset-relative locomotion and snap turn.
+* physics-grab.js — Rapier 3D physics, invisible ground collider, side-grip
+  grabbing and throwing, dual-hand geometric scaling and orientation.
+* assets/zelda.glb — Quest-optimised GLB embedded material textures.
+
+Physics is computed locally in the Quest browser; no backend or paid API is
+required. The scene uses Three.js r186, Rapier 0.21 and standard WebXR controller
+squeeze events (with gamepad grip-button fallback).
+
+## Testing
+
+Desktop browsers can inspect the scene and use orbit/WASD. Real passthrough
+video, physical controller grips, two-hand tracking, and throw feel **must be
+tested on Meta Quest 3**; standard desktop tests do not verify headset-specific
+WebXR behaviour. If your real floor height appears wrong, recenter the Quest
+headset guardian/floor calibration. The invisible floor is a *flat plane* at
+the WebXR local-floor zero height; there is no room mesh detection.
