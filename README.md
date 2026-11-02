@@ -1,6 +1,6 @@
 # Zelda · Quest 3 mixed reality
 
-**Current version: 8.0 — Two-hand right-wrist pitch AND roll while resizing.** [See version history](VERSIONS.md).
+**Current version: 9.0 — Model pull/push via either thumbstick, held or free.** [See version history](VERSIONS.md).
 The app displays its current version beneath the title on the live page; each
 subsequent update should bump the displayed number and add a history entry.
 
@@ -18,9 +18,9 @@ including in mid-air or upside down. She does not fall, bounce, drift or spin.
 
 | Control | While Zelda is NOT held | While THIS controller's side grip holds Zelda |
 |---|---|---|
-| Left thumbstick forward/back | Walk forward/back | **Continue walking forward/back** |
+| Left thumbstick forward/back | **Pull Zelda closer / push Zelda farther** | **Same pull/push** (does not walk the viewer) |
 | Left thumbstick left/right | Strafe | **Rotate Zelda 30° left/right** |
-| Right thumbstick forward/back | No assigned action | **Walk forward/back** |
+| Right thumbstick forward/back | **Pull Zelda closer / push Zelda farther** | **Same pull/push** (does not walk the viewer) |
 | Right thumbstick left/right | Turn viewpoint 30° | **Rotate Zelda 30° left/right**, not the viewpoint |
 | Side grip (squeeze button) | Grab Zelda when near or aiming at her | Keep Zelda attached to the hand |
 | Release last side grip | — | Freeze Zelda's exact position, scale and rotation |
@@ -28,9 +28,10 @@ including in mid-air or upside down. She does not fall, bounce, drift or spin.
 
 Horizontal stick movements rotate Zelda one **30° increment** per tilt. Return
 the stick toward centre before each subsequent increment. Horizontal rotation and
-forward/backward locomotion are independent: use both axes simultaneously. If both
-vertical stick axes are active, the stronger magnitude is used rather than
-doubling the walking speed.
+depth movement are independent: use both axes simultaneously. Both vertical
+stick axes operate Zelda's depth at all times, whether or not a grip is held.
+If both are active, the stronger stick deflection wins (right on equal strength),
+so they never double Zelda's travel speed.
 
 With two-hand grabbing, Zelda scales from **0.25× to 3.5×** the source size.
 In **version 8.0**, the right controller has priority for both up/down wrist pitch (local X) and left/right wrist roll (local Z).
@@ -57,14 +58,33 @@ is baked into the current grab-relative offset instead of being layered over
 the controller's live pose. Wrist twisting therefore stays aligned with the
 tracked controller after repeated snaps, while the other controls are retained.
 
+## Version 9 model depth control
+
+**Pull either thumbstick BACK (Y positive): Zelda moves toward the headset.**
+**Push either thumbstick FORWARD (Y negative): Zelda moves away from the headset.**
+The model, not the viewpoint/player, is translated. This works with **zero, one
+or two grip buttons pressed**, and can operate while the hand is twisting,
+resizing or making 30° model rotation steps. Travel speed is 1.4 metres/second
+at full deflection, and the permitted distance from the headset is 0.6–12m.
+The direction is recomputed from Zelda toward the current headset position so
+pulling feels like drawing the character towards you. With a held grip, model
+depth travel is stored as a separate offset applied after hand tracking so it
+cannot snap back on the next frame. When grip modes change, that offset is
+incorporated into the new grab baseline to prevent double travel.
+
+The horizontal axes remain unchanged: free left-stick left/right strafes,
+free right-stick left/right snap-turns the viewpoint, and either *gripping*
+controller's left/right stick rotates Zelda 30° steps. Player forward/back
+walking is no longer mapped to any vertical thumbstick axis.
+
 ## Publishing and implementation
 
 The version is shown **in the main page heading, below it, and in the footer**.
 The main page is `index.html`; for Quest browsers still displaying an older
-cached home page, open the explicit [Version 8 page](v8.html) at
-`https://kuke2013-hub.github.io/vrzzz/v8.html`. Both URLs load the same current
-`app.js?v=8` and `physics-grab.js?v=8` code after GitHub Pages publishes.
-The query string `?v=8` is not by itself proof that the published code updated.
+cached home page, open the explicit [Version 9 page](v9.html) at
+`https://kuke2013-hub.github.io/vrzzz/v9.html`. Both v9 entry points load
+`app.js?v=9` and `physics-grab.js?v=9` after GitHub Pages publishes.
+A URL query string alone does not prove a new deploy has taken effect.
 
 The site is a static GitHub Pages app (branch `main`, directory `/(root)`).
 It requires HTTPS, WebXR `immersive-ar` and the `local-floor` reference
@@ -76,10 +96,9 @@ space in Quest Browser.
   kinematic hand following and fixed-pose release; zero gravity, no floor collider.
 * `assets/zelda.glb`: optimised character mesh and embedded textures.
 
-The left thumbstick remains the normal movement controller when neither hand is
-gripping. The right thumbstick's vertical axis is enabled for walking when the
-right grip is holding Zelda. If the right grip is not holding, its horizontal axis
-still snap-turns the viewpoint.
+The left thumbstick can still strafe left/right when its grip is released;
+the right thumbstick still snap-turns the viewpoint left/right when its grip is
+released. **Neither thumbstick's forward/back motion moves the user anymore.**
 
 Hardware limitation: actual controller tracking, squeeze events, passthrough
 compositing and simultaneous diagonals must be checked in a physical Meta Quest 3.
