@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGrabPhysics } from './physics-grab.js?v=4';
+import { createGrabPhysics } from './physics-grab.js?v=5';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -73,7 +73,7 @@ function placeLoadedModel(root) {
   const centre=bounds.getCenter(new THREE.Vector3());
   modelSize=bounds.getSize(new THREE.Vector3());
   // The physics body's origin is at the model's geometric centre, not its feet.
-  // This allows free tumbling, turning upside-down, and bouncing on any side.
+  // This allows free turning and upside-down placement; release freezes the pose.
   root.position.sub(centre);
   root.traverse(part => {if(part.isMesh){part.castShadow=false;part.receiveShadow=false;}});
   modelAnchor.add(root);
@@ -179,12 +179,17 @@ function updateXR(dt, frame){
   } else if(right) {
     snapTurnReady=true; // Re-arm the view control while Zelda is being held.
   }
-  if(!left)return;
-  // Grip + stick axes can be used simultaneously: held-left X snaps Zelda,
-  // while Y keeps the usual forward/backward headset-relative locomotion.
-  // Without the left grip, X continues to strafe normally.
-  const side=!physics?.isHolding('left') && Math.abs(left.x)>.16?left.x:0;
-  const along=Math.abs(left.y)>.16?left.y:0;
+  // When either hand holds Zelda, that hand's stick keeps BOTH axes working:
+  // X rotates Zelda in 30° steps; Y independently walks forwards/backwards.
+  // A free left stick still strafes on X. A held right stick's X never turns
+  // the viewer. If both Y axes are active, use the stronger input so walking
+  // never doubles in speed or reverses erratically.
+  const heldLeft=!!physics?.isHolding('left');
+  const heldRight=!!physics?.isHolding('right');
+  const side=left && !heldLeft && Math.abs(left.x)>.16?left.x:0;
+  const leftForward=left && Math.abs(left.y)>.16?left.y:0;
+  const rightForward=heldRight && right && Math.abs(right.y)>.16?right.y:0;
+  const along=Math.abs(rightForward)>Math.abs(leftForward)?rightForward:leftForward;
   if(!side&&!along)return;
   const o=pose.transform.orientation;
   xrHeadOrientation.set(o.x,o.y,o.z,o.w);
@@ -193,7 +198,7 @@ function updateXR(dt, frame){
   xrForward.set(0,0,-1).applyQuaternion(xrHeadOrientation);xrForward.y=0;
   if(xrForward.lengthSq()<.00001)return;
   xrForward.normalize();xrRight.crossVectors(xrForward,UP).normalize();
-  // X+ strafe right; Y- move forward, headset-relative including snap turns.
+  // X+ (unheld left) strafes right; Y- (left or held right) walks forward.
   const speed=1.5*dt;
   rig.position.x+=(-along*xrForward.x+side*xrRight.x)*speed;
   rig.position.z+=(-along*xrForward.z+side*xrRight.z)*speed;
@@ -215,7 +220,7 @@ function resetView(){
   rig.position.set(HOME.x,0,HOME.z);rig.rotation.y=0;snapTurnReady=true;
   if(!renderer.xr.isPresenting){camera.position.set(0,1.65,2.65);controls.target.set(0,.75,-1.85);controls.update();}
   physics?.reset();
-  setStatus('View and Zelda reset. Grab with one side grip; squeeze both grips and change hand spacing to resize.');
+  setStatus('View and Zelda reset. Either held-hand stick walks forward/back and rotates Zelda sideways; release to leave Zelda floating.');
 }
 $('reset').addEventListener('click',resetView);
 
@@ -240,7 +245,7 @@ enter.addEventListener('click',async()=>{
     camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
     enter.textContent='PASSTHROUGH ACTIVE';
     physics?.releaseAll();
-    setStatus('Passthrough active: invisible physics floor. Side grip to grab/throw; both side grips to resize.');
+    setStatus('Passthrough active. Held-hand stick: left/right rotates Zelda 30°, forward/back moves you. Releasing the grip freezes Zelda in space.');
   }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
   finally{enter.disabled=false;}
 });
