@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#131b22">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
-  <title>Zelda VR v8.0 · Quest 3 Passthrough</title>
+  <title>Zelda VR v9.0 · Pull/Pull Model Controls</title>
   <style>
     :root{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}
     *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101a23}
@@ -36,16 +36,25 @@
   <div id="scene"></div>
   <section id="panel">
     <div class="eyebrow">Mixed reality / WebXR</div>
-    <h1>Zelda VR <span style="color:#86e8d4">v8.0</span> · Passthrough</h1>
-    <div class="versionline"><strong>Version 8.0</strong> · Two-hand wrist pitch + roll + resize · <a href="https://github.com/kuke2013-hub/vrzzz/blob/main/VERSIONS.md" target="_blank" rel="noopener noreferrer">Version history</a></div>
+    <h1>Zelda VR <span style="color:#86e8d4">v9.0</span> · Passthrough</h1>
+    <div class="versionline"><strong>Version 9.0</strong> · Pull &amp; push Zelda with either thumbstick · <a href="https://github.com/kuke2013-hub/vrzzz/blob/main/VERSIONS.md" target="_blank" rel="noopener noreferrer">Version history</a></div>
     <div class="sub">Life-size Zelda in your real room. No virtual floor, grid, or stage: only the character and passthrough.</div>
     <button id="enterAR" class="primary" type="button" disabled>CHECKING QUEST SUPPORT…</button>
     <div class="controls"><button id="reset" type="button">Reset view and Zelda</button></div>
     <div id="status" role="status">Preparing 3D scene…</div>
     <label id="filelabel" for="assetFile">Load GLB from device (desktop preview)</label><input id="assetFile" type="file" accept=".glb,model/gltf-binary">
-    <div class="hint"><strong>Quest controls</strong><br><strong>While holding Zelda with either side grip:</strong> use that hand’s thumbstick <strong>left/right</strong> to rotate Zelda 30° per tilt, and <strong>forward/back</strong> to walk at the same time. Centre the stick sideways before another 30° turn. Wrist twisting now stays aligned to the gripping controller even after repeated turns.<br>Release the grip: Zelda stays floating exactly where you placed her. No gravity, falling or bouncing.<br>Both grips: move hands apart to enlarge Zelda, closer to shrink (25%–350%). <strong>RIGHT wrist up/down pitches Zelda; right-wrist twist left/right rolls Zelda.</strong> Both can happen simultaneously while resizing. Right hand has wrist-rotation priority; the hand-line direction still steers the model.<br>Without gripping: left stick moves/side-steps; right stick snap-turns your view by 30°.<br><br><strong>Desktop</strong><br>Drag to orbit · Scroll to zoom · <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> to move</div>
+    <div class="hint"><strong>Quest controls · v9.0</strong>
+      <br><strong>Either thumbstick BACK:</strong> pull Zelda closer to you
+      <br><strong>Either thumbstick FORWARD:</strong> push Zelda farther away
+      <br><strong>No grip needed:</strong> pull/push also works with both side buttons released. Your viewpoint stays in place.
+      <br><strong>While holding:</strong> keep pulling/pushing with either stick alongside physical hand movement; thumbstick left/right on a gripping hand still rotates Zelda 30° per step.
+      <br><strong>Both grips:</strong> resize by spreading/closing hands; RIGHT wrist pitch up/down and roll left/right still work simultaneously.
+      <br><strong>Other stick controls:</strong> free left stick left/right still strafes; free right stick left/right still snap-turns your viewpoint 30°.
+      <br><strong>Release:</strong> Zelda stays floating with no gravity. Depth range 0.6–12m from headset.
+      <br><br><strong>Desktop:</strong> Drag to orbit · Scroll to zoom · <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> to move
+    </div>
   </section>
-  <div id="footer">ZELDA VR v8.0 · Two-hand resize + right-wrist pitch and roll · Freeze on release</div>
-  <script type="module" src="./app.js?v=8"></script>
+  <div id="footer">ZELDA VR v9.0 · Stick BACK pulls Zelda closer · Stick FORWARD pushes her away</div>
+  <script type="module" src="./app.js?v=9"></script>
 </body>
 </html>
