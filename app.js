@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createGrabPhysics } from './physics-grab.js?v=7';
+import { createGrabPhysics } from './physics-grab.js?v=8';
 
 const $ = (id) => document.getElementById(id);
 const setStatus = (message) => { $('status').textContent = message; };
@@ -81,7 +81,7 @@ function placeLoadedModel(root) {
   modelAnchor.rotation.set(0,-Math.PI/2,0);
   modelAnchor.scale.setScalar(1);
   if(physics)physics.attachModel(modelSize);
-  setStatus('Zelda loaded at human scale. Grab with both side grips to resize; twist your RIGHT wrist at the same time to roll the model.');
+  setStatus('Zelda VR v8: Grab with both grips. Change hand spacing to resize; move RIGHT wrist up/down to pitch and twist it left/right to roll.');
 }
 
 // GitHub transfer stores this Quest-optimised GLB as eight byte-exact binary parts.
@@ -245,7 +245,7 @@ enter.addEventListener('click',async()=>{
     camera.position.set(0,0,0); // Never reuse the desktop orbit offset in XR.
     enter.textContent='PASSTHROUGH ACTIVE';
     physics?.releaseAll();
-    setStatus('Passthrough active. Held-hand stick: left/right rotates Zelda 30°, forward/back moves you. Releasing the grip freezes Zelda in space.');
+    setStatus('Zelda VR v8 active: Two grips resize; RIGHT wrist pitch and roll are simultaneous. Held-hand stick still walks and rotates in 30° steps.');
   }catch(error){console.error(error);enter.textContent='RETRY PASSTHROUGH';setStatus(`Could not start AR: ${error.name}: ${error.message}`);}
   finally{enter.disabled=false;}
 });
