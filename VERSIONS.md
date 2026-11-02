@@ -7,6 +7,7 @@ or restored even though Pages serves only the latest version.
 
 | Version | Release | Changes | Source |
 | --- | --- | --- | --- |
+| **12.0** | 2 Nov 2026 | Fix Quest target-ray remote selection, add angular aim assistance, enable two-handed remote join and distance-responsive translation independent of wrist twisting. Maintain 10%–350% scaling and all controls. | [GitHub history](https://github.com/kuke2013-hub/vrzzz/commits/main/) |
 | **11.2** | 2 Nov 2026 | Remove 3m grab-distance cap: aim at Zelda and squeeze either grip to select her at any visible distance, preserving 10%–350% linear scaling and every other control. | [GitHub commits](https://github.com/kuke2013-hub/vrzzz/commits/main/) |
 | **11.1** | 2 Nov 2026 | **Correct minimum resizing bound to 10% (maximum 350%)**, retaining linear two-hand scaling and all Version 10 joystick/wrist behaviour. Reconciles a conflicting Version 11 change that had restored 25%. | [GitHub revision history](https://github.com/kuke2013-hub/vrzzz/commits/main/) |
 | **11.0** | 2 Nov 2026 | **Restore the original 25%–350% two-hand resize limits**, with linear hand-spacing response. Preserve all Version 10 controls and right-wrist pitch/roll. Corrects the intermediate v10.1 10% minimum. | [Source correction](https://github.com/kuke2013-hub/vrzzz/commit/4c400efed6f2264ffbd60cc152715bc7f29089f9) |
@@ -34,6 +35,18 @@ right-wrist pitch/roll works during two-hand resizing, passthrough remains
 transparent, and release freezes the model without gravity.
 
 [Open Version 11](https://kuke2013-hub.github.io/vrzzz/v11.html).
+
+## Version 12.0 — full remote manipulation
+
+Uses Quest targetRaySpace instead of gripSpace for selection, plus a 7°
+angular aiming tolerance for tiny distant figures. Either hand may
+grab; the second hand can join an active hold without repointing.
+Remote hand translation moves Zelda with distance-aware sensitivity,
+while twist and pitch remain orientation-only and do not fling the
+model along a large circular arc. Two-handed midpoint, size and
+right-wrist rotation continue working. Close-up controls and linear
+10%–350% scale range are unchanged. Quest entry:
+https://kuke2013-hub.github.io/vrzzz/v12.html
 
 ## Version 11.2 — remote grab without distance limit
 

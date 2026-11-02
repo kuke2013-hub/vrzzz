@@ -1,6 +1,6 @@
 # Zelda · Quest 3 mixed reality
 
-**Current version: 11.2 — Grab Zelda from any visible distance; preserve 10%–350% linear resizing and all controls.** [See version history](VERSIONS.md).
+**Current version: 12.0 — Accurate Quest remote pointing, full one/two-hand manipulation; linear resize still 10%–350%.** [See version history](VERSIONS.md).
 The app displays its current version beneath the title on the live page; each
 subsequent update should bump the displayed number and add a history entry.
 
@@ -66,6 +66,28 @@ micro-dot or giant-building scaling. Right-wrist pitch/roll, thumbstick model
 movement, 30° right-hand model turns, passthrough and stationary release remain
 unchanged. The v10.1 intermediate release briefly used a 10% minimum; v11.0
 corrects it back to the original 25%.
+
+## Version 12.0: true remote grabbing and manipulation
+
+**Issue fixed:** the prior remote-pick ray incorrectly followed the
+controller grip rather than WebXR's targetRaySpace. Aimed selection now
+uses `getController()`, while physical motion uses `getControllerGrip()`.
+Exact ray hits have no distance cap; a 7° aim-assist cone makes distant
+tiny figures easier to acquire. Once the first hand holds Zelda, the
+second side grip joins directly, without requiring another precise aim.
+
+Distant object movement is based on physical hand translation amplified
+with distance, so moving a hand up/down/left/right visibly moves Zelda.
+Wrist rotations remain active but do not rotate the enormous far-away
+hand-to-object position offset, preventing Zelda from flying out of view
+when twisting the wrist. With both hands, their midpoint drives remote
+position, and the right wrist retains pitch and roll. Close-up manipulation
+is unchanged.
+
+The model stays in its current place on initial grab. Both joystick
+model motions, 30° rotations, 10%–350% linear scale and gravity-free
+release remain unchanged. A literal infinite distance cannot be rendered
+in Quest Browser; all finite visible distances may be selected.
 
 ## Version 11.2: distance-unlimited remote grip
 

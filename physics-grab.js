@@ -10,7 +10,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
 
   let body = null, baseHalf = new THREE.Vector3(0.84,0.40,0.62);
   let objectScale = 1, accumulator = 0, heldMode = 'none';
-  // Version 11.2: restore the original linear hand-distance resize control.
+  // Version 12.0: restore the original linear hand-distance resize control.
   // User requested linear two-hand resize limits: 10% to 350%.
   const MIN_SCALE = 0.10, MAX_SCALE = 3.50;
   const MODEL_SIDE_SPEED = 1.4;
@@ -22,6 +22,15 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   const throwLinear = new THREE.Vector3(), throwAngular = new THREE.Vector3();
   const deltaQuat = new THREE.Quaternion(), rotationAxis = new THREE.Vector3();
   const handRay = new THREE.Ray(), rayIntersection = new THREE.Vector3();
+  // Aim using targetRaySpace (not gripSpace); hand poses remain gripSpace.
+  const aimPosition = new THREE.Vector3(), aimQuaternion = new THREE.Quaternion();
+  const aimToObject = new THREE.Vector3();
+  const AIM_ASSIST = THREE.MathUtils.degToRad(7);
+  const AIM_MARGIN = THREE.MathUtils.degToRad(2);
+  const REMOTE_START_METRES = 2.25;
+  const oneStartHand = new THREE.Vector3(), oneStartModel = new THREE.Vector3();
+  const twoStartMid = new THREE.Vector3(), twoStartModel = new THREE.Vector3();
+  let oneMotionGain = 1, twoMotionGain = 1;
   const offset = new THREE.Vector3(), offsetQuat = new THREE.Quaternion();
   // Pull/push is an independent world-space translation, separate from the
   // tracked controller grip offset. It survives one/two-hand manipulation.
@@ -120,6 +129,15 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hand.grip.getWorldPosition(position);
     hand.grip.getWorldQuaternion(quaternion);
   }
+  function aimTransform(hand, position, quaternion) {
+    hand.controller.updateWorldMatrix(true,false);
+    hand.controller.getWorldPosition(position);
+    hand.controller.getWorldQuaternion(quaternion);
+  }
+  function remoteGain(distance) {
+    // Angularly consistent motion at long range, original 1:1 when close.
+    return distance>REMOTE_START_METRES?Math.max(1,distance/2):1;
+  }
   function syncAnchorFromBody() {
     if(!body)return;
     const p=body.translation(), q=body.rotation();
@@ -139,17 +157,28 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function canGrab(hand) {
     if(!body || !renderer.xr.isPresenting)return false;
+    // Once one controller holds Zelda, the other can join the remote grab
+    // without both pointing precisely at a tiny figure simultaneously.
+    if(activeHands().length===1)return true;
     handTransform(hand,handPos,handQuat);
     modelAnchor.updateWorldMatrix(true,false);
     const localHand=modelAnchor.worldToLocal(handPos.clone());
     const nearest=localBox.clampPoint(localHand,new THREE.Vector3());
     if(nearest.distanceTo(localHand)*objectScale < 0.38)return true;
-    // Aim + squeeze to grab from any distance. Still requires a ray hit;
-    // nearby touch grabs also work. No visible pointer is drawn.
-    handRay.origin.copy(handPos);
-    handRay.direction.set(0,0,-1).applyQuaternion(handQuat).normalize();
+    // Actual Quest pointing ray: getController() is targetRaySpace.
+    aimTransform(hand,aimPosition,aimQuaternion);
+    handRay.origin.copy(aimPosition);
+    handRay.direction.set(0,0,-1).applyQuaternion(aimQuaternion).normalize();
     const localRay=handRay.clone().applyMatrix4(modelAnchor.matrixWorld.clone().invert());
-    return localRay.intersectBox(localBox,rayIntersection)!==null;
+    if(localRay.intersectBox(localBox,rayIntersection)!==null)return true;
+    // Tiny/distant objects require modest angular aiming tolerance.
+    aimToObject.subVectors(modelAnchor.position,aimPosition);
+    const distance=aimToObject.length();
+    if(distance<=1e-5)return true;
+    aimToObject.divideScalar(distance);
+    const cone=Math.max(AIM_ASSIST,Math.atan2(baseHalf.length()*objectScale,distance)+AIM_MARGIN);
+    const alignment=handRay.direction.dot(aimToObject);
+    return alignment>0 && alignment>=Math.cos(Math.min(Math.PI/2,cone));
   }
   function beginOne(hand) {
     heldMode='one';
@@ -157,6 +186,9 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     // offset here so switching between one/two-hand holds never double-shifts.
     depthOffset.set(0,0,0);
     handTransform(hand,handPos,handQuat);
+    oneStartHand.copy(handPos);
+    oneStartModel.copy(modelAnchor.position);
+    oneMotionGain=remoteGain(oneStartModel.distanceTo(oneStartHand));
     offset.copy(modelAnchor.position).sub(handPos).applyQuaternion(handQuat.clone().invert());
     offsetQuat.copy(handQuat).invert().multiply(modelAnchor.quaternion);
     lastPosition.copy(modelAnchor.position);lastQuat.copy(modelAnchor.quaternion);
@@ -168,6 +200,9 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     const pa=new THREE.Vector3(),pb=new THREE.Vector3(),qa=new THREE.Quaternion(),qb=new THREE.Quaternion();
     handTransform(pair[0],pa,qa);handTransform(pair[1],pb,qb);
     mid.copy(pa).add(pb).multiplyScalar(0.5);
+    twoStartMid.copy(mid);
+    twoStartModel.copy(modelAnchor.position);
+    twoMotionGain=remoteGain(twoStartModel.distanceTo(twoStartMid));
     line.subVectors(pb,pa);
     twoStartDistance=Math.max(0.10,line.length());
     twoStartLine.copy(line).normalize();
@@ -205,10 +240,10 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hand.snapReady=true;
     if(activeHands().length===2) {
       beginTwo();
-      onStatus('Version 11.2: spread/close both hands to resize Zelda linearly from 10% to 350%. Right-wrist pitch/roll and joystick controls remain unchanged.');
+      onStatus('Version 12.0: both grips attached. Move hands up/down/left/right to position Zelda; twist right wrist, resize 10%–350%.');
     } else {
       beginOne(hand);
-      onStatus('Version 11.2: left stick X moves Zelda sideways; right held stick X rotates 30°. Either stick Y pulls/pushes Zelda.');
+      onStatus('Version 12.0: remote grip active! Move your hand to translate Zelda, twist wrist to rotate her.');
     }
   }
   // Zero gravity / frozen release: when the final grip is released,
@@ -233,7 +268,14 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     if(!group.length)return;
     if(group.length===1) {
       handTransform(group[0],handPos,handQuat);
-      targetPosition.copy(offset).applyQuaternion(handQuat).add(handPos);
+      if(oneMotionGain>1) {
+        // Remote translation and twist are independent: avoid spinning
+        // Zelda around an enormous hand-to-object orbit.
+        targetPosition.copy(oneStartModel).addScaledVector(
+          tempPosition.subVectors(handPos,oneStartHand),oneMotionGain);
+      } else {
+        targetPosition.copy(offset).applyQuaternion(handQuat).add(handPos);
+      }
       targetQuat.copy(handQuat).multiply(offsetQuat);
     } else {
       const pa=new THREE.Vector3(),pb=new THREE.Vector3(),qa=new THREE.Quaternion(),qb=new THREE.Quaternion();
@@ -245,11 +287,17 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       // Restrict scale to 10%-350% of normal size.
       changeScale(twoStartScale*ratio);
       targetQuat.copy(twoHandFrame).multiply(twoStartQuat);
-      // At huge scales, multiplying this offset by scale would fling Zelda
-      // kilometres away from the user. Preserve her centre-relative offset
-      // while still following both hands' position, swing, pitch and roll.
-      targetPosition.copy(twoStartOffset)
-        .applyQuaternion(twoHandFrame).add(mid);
+      if(twoMotionGain>1) {
+        // Both remote grips translate through their midpoint. Right wrist
+        // pitch and roll rotate Zelda in place rather than swinging the
+        // whole faraway hand-to-model offset.
+        targetPosition.copy(twoStartModel).addScaledVector(
+          tempPosition.subVectors(mid,twoStartMid),twoMotionGain);
+      } else {
+        // Preserve original close-up two-handed pivot.
+        targetPosition.copy(twoStartOffset)
+          .applyQuaternion(twoHandFrame).add(mid);
+      }
     }
     // Separate model-depth travel from grip pose and two-hand scaling.
     // The extra translation is NOT rotated by the hand/wrist, so pushing
