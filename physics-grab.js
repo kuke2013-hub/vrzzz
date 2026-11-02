@@ -19,6 +19,13 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   const deltaQuat = new THREE.Quaternion(), rotationAxis = new THREE.Vector3();
   const handRay = new THREE.Ray(), rayIntersection = new THREE.Vector3();
   const offset = new THREE.Vector3(), offsetQuat = new THREE.Quaternion();
+  // Pull/push is an independent world-space translation, separate from the
+  // tracked controller grip offset. It survives one/two-hand manipulation.
+  const depthOffset = new THREE.Vector3();
+  const depthDirection = new THREE.Vector3();
+  const MODEL_DEPTH_SPEED = 1.4; // metres/second at full stick deflection
+  const MODEL_NEAR_LIMIT = 0.60;
+  const MODEL_FAR_LIMIT = 12;
   const mid = new THREE.Vector3(), line = new THREE.Vector3(), rotationDelta = new THREE.Quaternion();
   const relativeOffset = new THREE.Vector3();
   let twoStartDistance = 1, twoStartScale = 1;
@@ -141,6 +148,9 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function beginOne(hand) {
     heldMode='one';
+    // Captured pose already contains earlier pull/push travel. Reset the extra
+    // offset here so switching between one/two-hand holds never double-shifts.
+    depthOffset.set(0,0,0);
     handTransform(hand,handPos,handQuat);
     offset.copy(modelAnchor.position).sub(handPos).applyQuaternion(handQuat.clone().invert());
     offsetQuat.copy(handQuat).invert().multiply(modelAnchor.quaternion);
@@ -160,6 +170,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     twoStartScale=objectScale;
     twoStartQuat.copy(modelAnchor.quaternion);
     twoStartOffset.copy(modelAnchor.position).sub(mid);
+    depthOffset.set(0,0,0);
     heldMode='two';
     lastPosition.copy(modelAnchor.position);lastQuat.copy(modelAnchor.quaternion);
     lastSampleValid=false;
@@ -189,10 +200,10 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hand.snapReady=true;
     if(activeHands().length===2) {
       beginTwo();
-      onStatus('Version 8: resize with both hands while tilting the RIGHT wrist up/down (pitch) and twisting left/right (roll).');
+      onStatus('Version 9: resize and twist with both grips; either stick Y pulls/pushes Zelda independently.');
     } else {
       beginOne(hand);
-      onStatus('Zelda grabbed. Thumbstick X rotates 30°, Y walks forward/back. Release grip to leave Zelda floating in place.');
+      onStatus('Zelda grabbed. Stick X rotates Zelda 30°. Stick Y now PULLS her toward you or PUSHES her away.');
     }
   }
   // Zero gravity / frozen release: when the final grip is released,
@@ -209,7 +220,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     body.setAngvel({x:0,y:0,z:0},true);
     throwLinear.set(0,0,0);throwAngular.set(0,0,0);
     lastSampleValid=false;
-    onStatus('Zelda released: frozen exactly in place, with no gravity or momentum.');
+    depthOffset.set(0,0,0); // Frozen pose now contains the completed translation.
+    onStatus('Zelda released: stays exactly here. Pull/push with EITHER stick, even without a grip.');
   }
   function moveGrabbed(dt) {
     const group=activeHands();
@@ -231,6 +243,10 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       targetPosition.copy(twoStartOffset).multiplyScalar(objectScale/twoStartScale)
         .applyQuaternion(twoHandFrame).add(mid);
     }
+    // Separate model-depth travel from grip pose and two-hand scaling.
+    // The extra translation is NOT rotated by the hand/wrist, so pushing
+    // or pulling does not unexpectedly change direction when twisting.
+    targetPosition.add(depthOffset);
     // Every snap is already baked into the grip-relative offset. The hand's
     // tracked orientation acts first, so physical wrist twist stays one-to-one.
     // No ground clamping: release must preserve the exact position and
@@ -256,6 +272,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function attachModel(size) {
     hands.forEach(h=>{h.active=false;h.pressed=false;h.snapReady=true;});
+    depthOffset.set(0,0,0);
     heldMode='none';
     if(body) {world.removeRigidBody(body);body=null;collider=null;}
     baseHalf.copy(size).multiplyScalar(0.5);
@@ -276,6 +293,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function releaseAll() {
     hands.forEach(h=>{h.active=false;h.pressed=false;h.snapReady=true;});
+    depthOffset.set(0,0,0);
     if(body && heldMode!=='none') {
       heldMode='none';
       body.setTranslation(modelAnchor.position,true);
@@ -288,6 +306,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function reset() {
     releaseAll();
+    depthOffset.set(0,0,0);
     if(!body)return;
     changeScale(1);
     modelAnchor.position.set(0,baseHalf.y,-2);
@@ -297,6 +316,33 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     body.setLinvel({x:0,y:0,z:0},true);
     body.setAngvel({x:0,y:0,z:0},true);
     throwLinear.set(0,0,0);throwAngular.set(0,0,0);
+  }
+  function adjustModelDepth(stickY, dt, viewerPosition) {
+    // Works with neither, one, or both grips held. Quest axes: pushing
+    // forward gives Y<0, pulling backward gives Y>0.
+    // No headset/player locomotion occurs on either thumbstick Y axis.
+    if(!body || !viewerPosition || !Number.isFinite(stickY)
+        || !Number.isFinite(dt) || dt<=0 || Math.abs(stickY)<0.16)return;
+    depthDirection.subVectors(modelAnchor.position,viewerPosition);
+    const distance=depthDirection.length();
+    if(distance<0.001)return;
+    depthDirection.divideScalar(distance);
+    // Positive distance change sends Zelda away; negative pulls her nearer.
+    const desired=THREE.MathUtils.clamp(
+      distance - stickY * MODEL_DEPTH_SPEED * Math.min(dt,0.05),
+      MODEL_NEAR_LIMIT,MODEL_FAR_LIMIT);
+    const delta=desired-distance;
+    if(Math.abs(delta)<1e-7)return;
+    if(activeHands().length) {
+      // moveGrabbed() applies this after tracking the hands, preventing an
+      // unwanted snap back to the unshifted grip location each frame.
+      depthOffset.addScaledVector(depthDirection,delta);
+    } else {
+      // An unheld model is a fixed Rapier body: directly move both its visual
+      // pose and collider. Do not move the XR locomotion rig or camera.
+      modelAnchor.position.addScaledVector(depthDirection,delta);
+      body.setTranslation(modelAnchor.position,true);
+    }
   }
   function pollGrips() {
     if(!renderer.xr.isPresenting || !body)return;
@@ -383,5 +429,5 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
 
   renderer.xr.addEventListener('sessionend',releaseAll);
-  return {attachModel,update,reset,releaseAll,pollGrips,isHolding};
+  return {attachModel,update,reset,releaseAll,pollGrips,isHolding,adjustModelDepth};
 }
