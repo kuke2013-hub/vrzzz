@@ -23,6 +23,12 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   const relativeOffset = new THREE.Vector3();
   let twoStartDistance = 1, twoStartScale = 1;
   const twoStartLine = new THREE.Vector3(), twoStartQuat = new THREE.Quaternion(), twoStartOffset = new THREE.Vector3();
+  // Two-hand mode uses the right controller for wrist-roll priority. Hand spacing
+  // sets scale; hand-to-hand direction provides swing; the right grip adds twist.
+  const twoStartRightQuat = new THREE.Quaternion();
+  const rightExpectedQuat = new THREE.Quaternion(), rightResidualQuat = new THREE.Quaternion();
+  const twoHandTwist = new THREE.Quaternion(), twoHandFrame = new THREE.Quaternion();
+  const rightTwistAxis = new THREE.Vector3();
   const holdPosition = new THREE.Vector3(), holdQuat = new THREE.Quaternion();
   const lastHeldQuat = new THREE.Quaternion();
   let lastSampleValid = false;
@@ -51,6 +57,42 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   });
 
   function activeHands() {return hands.filter(h=>h.active);}
+  function twoHandPair() {
+    const active=activeHands();
+    if(active.length!==2)return null;
+    // Do not assume that WebXR's input-source enumeration is left then right.
+    const right=active.find(h=>h.source?.handedness==='right')||active[1];
+    const left=active.find(h=>h!==right && h.source?.handedness==='left')
+      ||active.find(h=>h!==right);
+    return [left,right];
+  }
+  function readTwoHandFrame(pa,pb,qa,qb) {
+    const pair=twoHandPair();
+    if(!pair)return null;
+    handTransform(pair[0],pa,qa);
+    handTransform(pair[1],pb,qb);
+    line.subVectors(pb,pa);
+    const distance=Math.max(0.035,line.length());
+    if(line.lengthSq()>1e-8)line.normalize();
+    else line.copy(twoStartLine);
+    // Swing the model as the hand-to-hand line changes, as in v6.
+    rotationDelta.setFromUnitVectors(twoStartLine,line);
+    // A purely swinging right hand would have this orientation. Only the
+    // residual wrist roll (around the controller's forward axis) is applied,
+    // so moving hands around does not double-count the swing rotation.
+    rightExpectedQuat.copy(rotationDelta).multiply(twoStartRightQuat);
+    rightTwistAxis.set(0,0,-1).applyQuaternion(rightExpectedQuat).normalize();
+    rightResidualQuat.copy(qb).multiply(rightExpectedQuat.clone().invert()).normalize();
+    const projected=rightResidualQuat.x*rightTwistAxis.x
+      +rightResidualQuat.y*rightTwistAxis.y
+      +rightResidualQuat.z*rightTwistAxis.z;
+    twoHandTwist.set(rightTwistAxis.x*projected,rightTwistAxis.y*projected,
+      rightTwistAxis.z*projected,rightResidualQuat.w);
+    if(twoHandTwist.lengthSq()<1e-10)twoHandTwist.identity();
+    else twoHandTwist.normalize();
+    twoHandFrame.copy(twoHandTwist).multiply(rotationDelta).normalize();
+    return distance;
+  }
   function handTransform(hand, position, quaternion) {
     hand.grip.updateWorldMatrix(true,false);
     hand.grip.getWorldPosition(position);
@@ -95,14 +137,15 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     lastSampleValid=false;
   }
   function beginTwo() {
-    const [a,b]=activeHands();
-    if(!a || !b)return;
+    const pair=twoHandPair();
+    if(!pair)return;
     const pa=new THREE.Vector3(),pb=new THREE.Vector3(),qa=new THREE.Quaternion(),qb=new THREE.Quaternion();
-    handTransform(a,pa,qa);handTransform(b,pb,qb);
+    handTransform(pair[0],pa,qa);handTransform(pair[1],pb,qb);
     mid.copy(pa).add(pb).multiplyScalar(0.5);
     line.subVectors(pb,pa);
     twoStartDistance=Math.max(0.10,line.length());
     twoStartLine.copy(line).normalize();
+    twoStartRightQuat.copy(qb); // Neutral wrist roll at the precise grab instant.
     twoStartScale=objectScale;
     twoStartQuat.copy(modelAnchor.quaternion);
     twoStartOffset.copy(modelAnchor.position).sub(mid);
@@ -135,7 +178,7 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     hand.snapReady=true;
     if(activeHands().length===2) {
       beginTwo();
-      onStatus('Both grip buttons held: spread your hands to enlarge Zelda, bring them closer to shrink.');
+      onStatus('Two-hand grab: spread hands to enlarge Zelda, bring them together to shrink, and twist the RIGHT wrist to roll her at the same time.');
     } else {
       beginOne(hand);
       onStatus('Zelda grabbed. Thumbstick X rotates 30°, Y walks forward/back. Release grip to leave Zelda floating in place.');
@@ -166,18 +209,16 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       targetQuat.copy(handQuat).multiply(offsetQuat);
     } else {
       const pa=new THREE.Vector3(),pb=new THREE.Vector3(),qa=new THREE.Quaternion(),qb=new THREE.Quaternion();
-      handTransform(group[0],pa,qa);handTransform(group[1],pb,qb);
+      const distance=readTwoHandFrame(pa,pb,qa,qb);
+      if(distance===null)return;
       mid.copy(pa).add(pb).multiplyScalar(0.5);
-      line.subVectors(pb,pa);
-      const distance=Math.max(0.035,line.length());
-      if(distance>0.001)line.normalize();
-      else line.copy(twoStartLine);
       const ratio=distance/twoStartDistance;
       changeScale(twoStartScale*ratio);
-      rotationDelta.setFromUnitVectors(twoStartLine,line);
-      targetQuat.copy(rotationDelta).multiply(twoStartQuat);
+      targetQuat.copy(twoHandFrame).multiply(twoStartQuat);
+      // Pivot about the hand midpoint; roll should also rotate Zelda's offset,
+      // not just her orientation, so she remains centred between the hands.
       targetPosition.copy(twoStartOffset).multiplyScalar(objectScale/twoStartScale)
-        .applyQuaternion(rotationDelta).add(mid);
+        .applyQuaternion(twoHandFrame).add(mid);
     }
     // Every snap is already baked into the grip-relative offset. The hand's
     // tracked orientation acts first, so physical wrist twist stays one-to-one.
@@ -286,17 +327,11 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       return true;
     }
     if(heldMode==='two') {
-      const [first,second]=activeHands();
-      if(!first || !second)return false;
-      handTransform(first,snapHandA,snapHandQA);
-      handTransform(second,snapHandB,snapHandQB);
-      line.subVectors(snapHandB,snapHandA);
-      if(line.lengthSq()>1e-8)line.normalize();
-      else line.copy(twoStartLine);
-      // Q = R * twoStartQuat. Conjugating by the current two-hand rotation
-      // preserves the live hand-to-model transform after the 30° step.
-      rotationDelta.setFromUnitVectors(twoStartLine,line);
-      snapFrameTurn.copy(rotationDelta).invert().multiply(yawStep).multiply(rotationDelta);
+      if(readTwoHandFrame(snapHandA,snapHandB,snapHandQA,snapHandQB)===null)return false;
+      // Q = F * twoStartQuat, where F combines interhand swing with right-hand
+      // wrist roll. Bake joystick yaw into that full frame to avoid twisting
+      // the wrist axis or losing the 30-degree snap after a wrist movement.
+      snapFrameTurn.copy(twoHandFrame).invert().multiply(yawStep).multiply(twoHandFrame);
       twoStartQuat.premultiply(snapFrameTurn).normalize();
       return true;
     }
