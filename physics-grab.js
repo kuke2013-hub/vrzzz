@@ -26,11 +26,14 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   const holdPosition = new THREE.Vector3(), holdQuat = new THREE.Quaternion();
   const lastHeldQuat = new THREE.Quaternion();
   let lastSampleValid = false;
-  // Yaw snaps affect the held OBJECT, never the player's rig/camera.
-  // Applied after the hand pose so a step persists during subsequent hand motion.
+  // Store yaw steps in the grip-relative orientation, NOT as a world-space
+  // quaternion applied after hand tracking. The old world-space premultiply
+  // rotated the *axis of later wrist motion* by the accumulated snap angle.
   const worldUp = new THREE.Vector3(0,1,0);
-  const heldYaw = new THREE.Quaternion();
   const yawStep = new THREE.Quaternion();
+  const snapFrameTurn = new THREE.Quaternion();
+  const snapHandA = new THREE.Vector3(), snapHandB = new THREE.Vector3();
+  const snapHandQA = new THREE.Quaternion(), snapHandQB = new THREE.Quaternion();
 
   // Register both target-ray events (squeeze button) and grip-space transforms.
   // Do not infer left/right from XR input source enumeration order.
@@ -85,7 +88,6 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function beginOne(hand) {
     heldMode='one';
-    heldYaw.identity(); // Capture previous snap in the new hand-relative baseline.
     handTransform(hand,handPos,handQuat);
     offset.copy(modelAnchor.position).sub(handPos).applyQuaternion(handQuat.clone().invert());
     offsetQuat.copy(handQuat).invert().multiply(modelAnchor.quaternion);
@@ -105,7 +107,6 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     twoStartQuat.copy(modelAnchor.quaternion);
     twoStartOffset.copy(modelAnchor.position).sub(mid);
     heldMode='two';
-    heldYaw.identity(); // Preserve the last snap in twoStartQuat; avoid applying it twice.
     lastPosition.copy(modelAnchor.position);lastQuat.copy(modelAnchor.quaternion);
     lastSampleValid=false;
   }
@@ -178,8 +179,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       targetPosition.copy(twoStartOffset).multiplyScalar(objectScale/twoStartScale)
         .applyQuaternion(rotationDelta).add(mid);
     }
-    // Keep a 30° joystick turn even after controller position/orientation changes.
-    targetQuat.premultiply(heldYaw).normalize();
+    // Every snap is already baked into the grip-relative offset. The hand's
+    // tracked orientation acts first, so physical wrist twist stays one-to-one.
     // No ground clamping: release must preserve the exact position and
     // orientation the user chose, including suspended and upside-down poses.
     modelAnchor.position.copy(targetPosition);
@@ -203,7 +204,6 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function attachModel(size) {
     hands.forEach(h=>{h.active=false;h.pressed=false;h.snapReady=true;});
-    heldYaw.identity();
     heldMode='none';
     if(body) {world.removeRigidBody(body);body=null;collider=null;}
     baseHalf.copy(size).multiplyScalar(0.5);
@@ -224,7 +224,6 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
   }
   function releaseAll() {
     hands.forEach(h=>{h.active=false;h.pressed=false;h.snapReady=true;});
-    heldYaw.identity();
     if(body && heldMode!=='none') {
       heldMode='none';
       body.setTranslation(modelAnchor.position,true);
@@ -272,6 +271,37 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
     if(secondary && (Math.abs(secondary.x)>.12||Math.abs(secondary.y)>.12))return secondary.x;
     return (primary||secondary||{x:0}).x;
   }
+  function snapHeldModel(direction) {
+    // World-up 30° yaw at the instant of input; then express that same
+    // rotation in the hand's CURRENT frame. This makes subsequent wrist
+    // roll/pitch/yaw affect Zelda on the same axes as the physical controller.
+    yawStep.setFromAxisAngle(worldUp,direction*Math.PI/6);
+    if(heldMode==='one') {
+      const hand=activeHands()[0];
+      if(!hand)return false;
+      handTransform(hand,handPos,handQuat);
+      // Q = H * O. Want Q' = Y * Q, so O' = inverse(H) * Y * H * O.
+      snapFrameTurn.copy(handQuat).invert().multiply(yawStep).multiply(handQuat);
+      offsetQuat.premultiply(snapFrameTurn).normalize();
+      return true;
+    }
+    if(heldMode==='two') {
+      const [first,second]=activeHands();
+      if(!first || !second)return false;
+      handTransform(first,snapHandA,snapHandQA);
+      handTransform(second,snapHandB,snapHandQB);
+      line.subVectors(snapHandB,snapHandA);
+      if(line.lengthSq()>1e-8)line.normalize();
+      else line.copy(twoStartLine);
+      // Q = R * twoStartQuat. Conjugating by the current two-hand rotation
+      // preserves the live hand-to-model transform after the 30° step.
+      rotationDelta.setFromUnitVectors(twoStartLine,line);
+      snapFrameTurn.copy(rotationDelta).invert().multiply(yawStep).multiply(rotationDelta);
+      twoStartQuat.premultiply(snapFrameTurn).normalize();
+      return true;
+    }
+    return false;
+  }
   function updateHeldThumbsticks() {
     for(const hand of hands) {
       if(!hand.active || !hand.source?.gamepad) {
@@ -286,8 +316,8 @@ export async function createGrabPhysics({renderer, rig, modelAnchor, onStatus}) 
       if(hand.snapReady && Math.abs(x)>.70) {
         hand.snapReady=false;
         const direction=x>0?1:-1;
-        heldYaw.premultiply(yawStep.setFromAxisAngle(worldUp,direction*Math.PI/6)).normalize();
-        // Keep the model's orientation stable when a discrete snap is applied.
+        if(!snapHeldModel(direction))continue;
+        // Avoid interpreting discrete stick snaps as wrist motion.
         throwAngular.set(0,0,0);
         lastSampleValid=false;
         onStatus('Zelda rotated 30° '+(direction>0?'right':'left')+'. Centre the held-hand joystick for another step.');
