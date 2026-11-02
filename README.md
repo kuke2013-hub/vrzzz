@@ -1,6 +1,6 @@
 # Zelda · Quest 3 mixed reality
 
-**Current version: 6.0 — Wrist-aligned rotation.** [See version history](VERSIONS.md).
+**Current version: 7.0 — Right-wrist twisting during two-hand resizing.** [See version history](VERSIONS.md).
 The app displays its current version beneath the title on the live page; each
 subsequent update should bump the displayed number and add a history entry.
 
@@ -24,7 +24,7 @@ including in mid-air or upside down. She does not fall, bounce, drift or spin.
 | Right thumbstick left/right | Turn viewpoint 30° | **Rotate Zelda 30° left/right**, not the viewpoint |
 | Side grip (squeeze button) | Grab Zelda when near or aiming at her | Keep Zelda attached to the hand |
 | Release last side grip | — | Freeze Zelda's exact position, scale and rotation |
-| Both grips simultaneously | — | Move hands apart/together to enlarge/shrink Zelda |
+| Both grips simultaneously | — | Move hands apart/together to enlarge/shrink Zelda **while twisting the right wrist to roll the model** |
 
 Horizontal stick movements rotate Zelda one **30° increment** per tilt. Return
 the stick toward centre before each subsequent increment. Horizontal rotation and
@@ -33,6 +33,15 @@ vertical stick axes are active, the stronger magnitude is used rather than
 doubling the walking speed.
 
 With two-hand grabbing, Zelda scales from **0.25× to 3.5×** the source size.
+In **version 7.0**, the right controller has priority for wrist twisting.
+The direction between the hands controls the model's overall swing; twisting
+the right wrist around its pointing axis supplies additional roll while the
+hand separation independently controls scale. This works during continuous
+size changes and while using the existing 30° thumbstick model rotations.
+The right hand is detected by the WebXR `handedness` field, not by controller
+enumeration order. Switching from one to two hands records a neutral twist
+reference to avoid a sudden jump; releasing one hand returns smoothly to the
+remaining hand's orientation. The model is still frozen in place on release.
 The source is already a crouched, human-length figure, approximately 1.67m
 long and 0.8m high; it must not be vertically stretched into a standing figure.
 
