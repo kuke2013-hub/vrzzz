@@ -4,9 +4,9 @@ A browser-based, room-scale WebXR mixed-reality viewer for the **uploaded Zelda 
 
 ## Model installed
 
-The model has been uploaded in **eight binary parts** (`assets/zelda.part01`–`assets/zelda.part08`), because of transfer-size limitations. The app downloads those parts and combines them in memory into a valid 11,668,312-byte GLB. The meshes are unchanged from the original, and the embedded colour/normal/PBR textures are resized for Meta Quest: colour and normal 2048 px, ORM 1024 px. The original GLB is preserved in the downloadable source bundle.
+The repository contains a **standalone, ready-to-render `assets/zelda.glb`** (11,668,312 bytes) and eight optional binary backup parts (`assets/zelda.part01`–`assets/zelda.part08`). The [reassembly workflow](.github/workflows/assemble-model.yml) has run successfully and reconstructed the standalone file, verifying SHA-256 `6da87f491b37c80eab5cebef794476468ea1af08bc253b949a9c33646aef4739`. The web app loads the standalone GLB, falling back to the segments if needed.
 
-If you prefer a standalone model file in the repository, manually upload the original extracted GLB as `assets/zelda.glb`; the viewer prefers it automatically. The app also supports loading a GLB manually on desktop using the local file picker.
+The character mesh is unchanged from the original. The embedded colour/normal/PBR textures are reduced for Meta Quest: colour and normal 2048 px, ORM 1024 px. The original, full-resolution GLB is preserved in the downloadable source bundle. The app also supports loading a local GLB from the file picker.
 
 The source model is **crouched**, approximately **1.67m long, 0.80m high and 1.23m across**. It is already floor-up in the source coordinate system. Do **not** rotate it upright or stretch its height to 1.7m; the 0.8m height is correct for this pose. The scene automatically centers its bounds and places its lowest point on the reference-space floor. The character is located approximately 2m in front of the initial headset heading.
 
