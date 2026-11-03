@@ -1,5 +1,8 @@
-# Verified Quest 3 model
+# Ellie Arrodillada — seam-safe original asset
 
-`ellie-arrodillada.glb` is published in this folder (18,269,332 bytes). SHA-256: `6392e02d78e884149f662bf797483440849bcd49585a0d18cf06e6366e5c0086`.
+`ellie-arrodillada.glb` is restored directly from the original upload, without vertex clustering or UV modification.
 
-Model published automatically through GitHub Actions after validation; no further upload is required.
+Expected byte length: `57204376`.
+Expected SHA-256: `5dcec8338835b6135eace89359bacd3c9d68c225ef838afccf340ffd2cf917fa`.
+
+The original GLB contains all geometry, 3 embedded JPEG images and the original single PBR material. Restored through verified GitHub Actions transfer. Physical Quest 3 render test pending.

@@ -1,0 +1,70 @@
+name: Restore original Ellie GLB to eliminate fractured texture seams
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/ellie-arrodillada/.transfer/**'
+      - '.github/workflows/restore-ellie-original.yml'
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Detect one-time transfer
+        id: transfer
+        shell: bash
+        run: |
+          if test -f objects/ellie-arrodillada/.transfer/part001.b64; then
+            echo 'present=yes' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=no' >> "$GITHUB_OUTPUT"
+            echo 'No transfer chunks remain. This is the post-publication cleanup run.'
+          fi
+      - name: Reconstruct and validate the exact original GLB
+        if: steps.transfer.outputs.present == 'yes'
+        shell: bash
+        run: |
+          set -euo pipefail
+          transfer='objects/ellie-arrodillada/.transfer'
+          model='objects/ellie-arrodillada/assets/ellie-arrodillada.glb'
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for i in $(seq -f '%03g' 1 41); do
+            test -f "$transfer/part$i.b64"
+            cat "$transfer/part$i.b64" >> "$tmp/model.b64"
+          done
+          base64 --decode "$tmp/model.b64" > "$tmp/model.xz"
+          printf '%s  %s\n' 'fbf5412e93e0fda65424bcc19691f68c5681fd604784ba41deac32130629a96b' "$tmp/model.xz" | sha256sum --check
+          xz --decompress --stdout "$tmp/model.xz" > "$model"
+          test "$(wc -c < "$model" | tr -d ' ')" = '57204376'
+          printf '%s  %s\n' '5dcec8338835b6135eace89359bacd3c9d68c225ef838afccf340ffd2cf917fa' "$model" | sha256sum --check
+          python3 - <<'PY'
+          import json,struct
+          fn='objects/ellie-arrodillada/assets/ellie-arrodillada.glb'
+          with open(fn,'rb') as h:
+              magic,version,total=struct.unpack('<4sII',h.read(12))
+              assert magic==b'glTF' and version==2 and total==57204376
+              json_len,kind=struct.unpack('<I4s',h.read(8))
+              assert kind==b'JSON'
+              doc=json.loads(h.read(json_len))
+              assert doc['accessors'][0]['count']==1058527
+              assert doc['accessors'][3]['count']==5603694
+              assert len(doc['images'])==3 and len(doc['materials'])==1
+          print('Original GLB 2.0 structure, UVs and embedded image references validated.')
+          PY
+          rm -rf "$transfer"
+      - name: Commit verified original model
+        if: steps.transfer.outputs.present == 'yes'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A objects/ellie-arrodillada/
+          if ! git diff --cached --quiet; then
+            git commit -m 'Restore original Ellie topology and eliminate simplification seam cracks'
+            git push origin HEAD:main
+          fi
