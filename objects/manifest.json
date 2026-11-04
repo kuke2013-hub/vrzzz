@@ -54,6 +54,15 @@
       "description": "An anatomical 22-bone skin-weighted puppet with close-range Quest trigger joint controls and shared Zelda v13 whole-body controls.",
       "status": "ready",
       "created": "2026-11-04"
+    },
+    {
+      "id": "colour-female-06-p06",
+      "title": "Colour Female 06",
+      "url": "./objects/colour-female-06-p06/",
+      "model": "./objects/colour-female-06-p06/assets/colour-female-06-p06.glb",
+      "description": "A detailed textured adult female scan in Quest 3 passthrough with the shared Zelda VR v13 whole-object controls.",
+      "status": "pending-model-upload",
+      "created": "2026-11-04"
     }
   ]
 }
