@@ -33,6 +33,7 @@ jobs:
             base64 --decode "$target/.transfer/part${i}.b64" >> "$tmp/model.xz"
           done
           echo 'f150bc11cd43c316c4fd006aa03c349354c17cd01de2fa28fc67cc09d1f3be3a  '"$tmp"'/model.xz' | sha256sum --check --status
+          mkdir -p "$(dirname "$model")"
           xz --decompress --stdout "$tmp/model.xz" > "$model"
           test "$(wc -c < "$model" | tr -d ' ')" = '3511396'
           echo '202e5f68a3152b15cdb6fd57c009e138e1d9cfeb7fd4e51c5b4f388a74e32c4b  '"$model" | sha256sum --check
