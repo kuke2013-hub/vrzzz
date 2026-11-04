@@ -63,6 +63,15 @@
       "description": "A detailed textured adult female scan in Quest 3 passthrough with the shared Zelda VR v13 whole-object controls.",
       "status": "pending-model-upload",
       "created": "2026-11-04"
+    },
+    {
+      "id": "colour-female-06-p04",
+      "title": "Colour Female 06 P04",
+      "url": "./objects/colour-female-06-p04/",
+      "model": "./objects/colour-female-06-p04/assets/colour-female-06-p04.glb",
+      "description": "A textured female scan in Quest 3 passthrough, using the shared Zelda v13 controller engine. Hosted model upload pending.",
+      "status": "pending-model-upload",
+      "created": "2026-11-04"
     }
   ]
 }

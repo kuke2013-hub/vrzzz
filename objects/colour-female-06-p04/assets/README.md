@@ -1,0 +1,1 @@
+The model file belongs here: colour-female-06-p04.glb. Required for automatic loading; not yet uploaded to this repository. The standalone GLB is supplied as a separate downloadable artifact.
