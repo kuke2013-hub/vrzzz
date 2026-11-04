@@ -1,0 +1,70 @@
+name: Publish anatomical woman articulated VR figure
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/anatomical-woman-rig/.transfer/**'
+      - '.github/workflows/assemble-anatomical-woman-rig.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Reassemble model and publish in catalogue only if valid
+        shell: bash
+        run: |
+          set -euo pipefail
+          target='objects/anatomical-woman-rig'
+          model="$target/assets/character-rigged.glb"
+          if [[ ! -f "$target/.transfer/part01.b64" ]]; then
+            echo 'Transfer already consumed; nothing to publish.'
+            exit 0
+          fi
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for i in 01 02 03; do
+            test -f "$target/.transfer/part${i}.b64"
+            base64 --decode "$target/.transfer/part${i}.b64" >> "$tmp/model.xz"
+          done
+          echo 'f150bc11cd43c316c4fd006aa03c349354c17cd01de2fa28fc67cc09d1f3be3a  '"$tmp"'/model.xz' | sha256sum --check --status
+          xz --decompress --stdout "$tmp/model.xz" > "$model"
+          test "$(wc -c < "$model" | tr -d ' ')" = '3511396'
+          echo '202e5f68a3152b15cdb6fd57c009e138e1d9cfeb7fd4e51c5b4f388a74e32c4b  '"$model" | sha256sum --check
+          python3 - <<'PY'
+          import json, struct, pathlib
+          model=pathlib.Path('objects/anatomical-woman-rig/assets/character-rigged.glb').read_bytes()
+          assert struct.unpack_from('<III', model)==(0x46546c67,2,len(model))
+          length, tag=struct.unpack_from('<II',model,12)
+          assert tag==0x4E4F534A
+          gltf=json.loads(model[20:20+length]); assert len(gltf['skins'][0]['joints'])==22
+          manifest=pathlib.Path('objects/manifest.json')
+          data=json.loads(manifest.read_text())
+          assert isinstance(data.get('objects'),list)
+          id='anatomical-woman-rig'
+          assert all(x.get('id')!=id for x in data['objects']), 'Figure already exists: abort to prevent overwrite'
+          data['objects'].append({
+              'id':id,
+              'title':'Anatomical Woman · Articulated Rig',
+              'url':'./objects/anatomical-woman-rig/',
+              'model':'./objects/anatomical-woman-rig/assets/character-rigged.glb',
+              'description':'An anatomical 22-bone skin-weighted puppet with close-range Quest trigger joint controls and shared Zelda v13 whole-body controls.',
+              'status':'ready',
+              'created':'2026-11-04'
+          })
+          manifest.write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n')
+          print('Verified rig and prepared manifest:',len(data['objects']),'entries')
+          PY
+          rm -rf "$target/.transfer"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A "$target" objects/manifest.json
+          git diff --cached --quiet && { echo 'No changes required'; exit 0; }
+          git commit -m 'Publish byte-verified articulated anatomical woman GLB and catalogue'
+          git pull --rebase origin main
+          git push origin HEAD:main
