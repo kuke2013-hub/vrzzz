@@ -1,0 +1,53 @@
+name: Reweight anatomical woman V2 (preserve Quest trigger controls)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/anatomical-woman-rig/reweight_v2.py'
+      - '.github/workflows/reweight-anatomical-woman-v2.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update-rig:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out current repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install rig dependencies
+        run: python -m pip install --disable-pip-version-check numpy scipy
+      - name: Rebuild skin, preserve original mesh attributes and test weights
+        run: python objects/anatomical-woman-rig/reweight_v2.py
+      - name: Publish validated model without touching any controller code
+        shell: bash
+        run: |
+          set -euo pipefail
+          target='objects/anatomical-woman-rig/assets/character-rigged.glb'
+          test -s "$target"
+          git diff --name-only | grep -qx "$target"
+          python - <<'PY'
+          import json,struct,hashlib
+          from pathlib import Path
+          p=Path('objects/anatomical-woman-rig/assets/character-rigged.glb')
+          b=p.read_bytes()
+          assert struct.unpack_from('<III',b,0)==(0x46546c67,2,len(b))
+          j=struct.unpack_from('<I',b,12)[0]
+          d=json.loads(b[20:20+j])
+          assert len(d['skins'][0]['joints'])==22
+          assert d['extras']['skinWeightsVersion']==2
+          assert d['meshes'][0]['primitives'][0]['attributes'].get('WEIGHTS_0') is not None
+          print('model sha256',hashlib.sha256(b).hexdigest(),'size',len(b))
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "$target"
+          if git diff --cached --quiet; then echo 'No new model changes'; exit 0; fi
+          git commit -m 'Reweight anatomical woman V2 using user-marked pivots'
+          git pull --rebase origin main
+          git push origin HEAD:main
