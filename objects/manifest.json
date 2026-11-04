@@ -36,6 +36,15 @@
       "description": "A textured kneeling character in Quest 3 passthrough, using the shared Zelda VR v13 controller system.",
       "status": "ready",
       "created": "2026-11-02"
+    },
+    {
+      "id": "anatomical-woman-rig",
+      "title": "Anatomical Woman · Articulated Rig",
+      "url": "./objects/anatomical-woman-rig/",
+      "model": "./objects/anatomical-woman-rig/assets/character-rigged.glb",
+      "description": "An anatomical 22-bone skin-weighted puppet with close-range Quest trigger joint controls and shared Zelda v13 whole-body controls.",
+      "status": "ready",
+      "created": "2026-11-04"
     }
   ]
 }
