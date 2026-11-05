@@ -7,7 +7,7 @@
       "url": "./objects/colour-female-06/",
       "model": "./objects/colour-female-06/assets/colour-female-06.glb",
       "description": "Full-resolution textured 3D human scan, independently manipulable in Quest 3 passthrough with shared Zelda VR v13 controls.",
-      "status": "pending-model-upload",
+      "status": "ready",
       "created": "2026-11-04"
     },
     {
@@ -48,7 +48,7 @@
     },
     {
       "id": "anatomical-woman-rig",
-      "title": "Anatomical Woman \u00b7 Articulated Rig",
+      "title": "Anatomical Woman · Articulated Rig",
       "url": "./objects/anatomical-woman-rig/",
       "model": "./objects/anatomical-woman-rig/assets/character-rigged.glb",
       "description": "An anatomical 22-bone skin-weighted puppet with close-range Quest trigger joint controls and shared Zelda v13 whole-body controls.",
