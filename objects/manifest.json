@@ -3,10 +3,10 @@
   "objects": [
     {
       "id": "colour-female-06",
-      "title": "Colour Female 06",
+      "title": "Colour Female 06 P01",
       "url": "./objects/colour-female-06/",
       "model": "./objects/colour-female-06/assets/colour-female-06.glb",
-      "description": "Full-resolution textured 3D human scan, independently manipulable in Quest 3 passthrough with shared Zelda VR v13 controls.",
+      "description": "Textured Colour Female 06 P01 OBJ scan with 749,992 original triangles in Quest 3 passthrough, using shared Zelda VR v13 controls.",
       "status": "ready",
       "created": "2026-11-04"
     },
