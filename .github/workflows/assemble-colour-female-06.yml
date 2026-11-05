@@ -1,0 +1,75 @@
+name: Reassemble and publish Colour Female 06 textured GLB
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/colour-female-06/.transfer/**'
+      - '.github/workflows/assemble-colour-female-06.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest repository with write credentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Reassemble binary and verify original hashes, geometry and embedded texture
+        shell: bash
+        run: |
+          set -euo pipefail
+          transfer='objects/colour-female-06/.transfer'
+          model='objects/colour-female-06/assets/colour-female-06.glb'
+          if [[ ! -f "$transfer/part001.bin" ]]; then
+            echo 'Verified transfer already consumed; no further changes.'
+            exit 0
+          fi
+          git pull --rebase origin main
+          test "$(find "$transfer" -maxdepth 1 -name 'part*.bin' -type f | wc -l | tr -d ' ')" = '63'
+          mkdir -p "$(dirname "$model")"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          cat "$transfer"/part*.bin > "$tmp/model.xz"
+          test "$(wc -c < "$tmp/model.xz" | tr -d ' ')" = '16474464'
+          echo 'eab3635df9c62161f4997f1178efa57fb556819dab3e878864c9de1f8b3cc680  '"$tmp"'/model.xz' | sha256sum --check
+          xz --decompress --stdout "$tmp/model.xz" > "$model"
+          test "$(wc -c < "$model" | tr -d ' ')" = '23475124'
+          echo 'a309e280c90d97a9420d74b6833b6659d315acbcebd4dd727d1c3c641293f4f9  '"$model" | sha256sum --check
+          python3 - <<'PY'
+          import json, struct, pathlib
+          p = pathlib.Path('objects/colour-female-06/assets/colour-female-06.glb')
+          data = p.read_bytes()
+          magic, version, n = struct.unpack_from('<III', data, 0)
+          assert (magic, version, n) == (0x46546c67, 2, len(data)), 'Invalid GLB header/length'
+          jlen, jtype = struct.unpack_from('<II', data, 12)
+          assert jtype == 0x4E4F534A, 'Missing glTF JSON'
+          gltf = json.loads(data[20:20+jlen])
+          tris = sum(gltf['accessors'][primitive['indices']]['count']//3
+              for mesh in gltf['meshes'] for primitive in mesh['primitives'] if 'indices' in primitive)
+          assert tris == 749992, f'Unexpected triangle count: {tris}'
+          assert any('bufferView' in img for img in gltf.get('images', [])), 'Texture missing from GLB'
+          manifest = pathlib.Path('objects/manifest.json')
+          entry = json.loads(manifest.read_text())
+          matches = [o for o in entry['objects'] if o.get('id') == 'colour-female-06']
+          assert len(matches) == 1, 'Expected one unique object catalogue entry'
+          matches[0]['status'] = 'ready'
+          manifest.write_text(json.dumps(entry, indent=2, ensure_ascii=False)+'\n')
+          readme = pathlib.Path('objects/colour-female-06/README.md')
+          readme.write_text(readme.read_text().replace('**Status: pending model upload.**', '**Status: published; GLB checksum validated.**').replace('The page and catalogue entry are published, but the required GLB binary has NOT been uploaded to GitHub. To activate the automatically loaded model, add the self-contained exported file at ', 'The page and catalogue entry now include the verified binary model at '))
+          print('GLB verified:', len(data), 'bytes;', tris, 'triangles; embedded texture; catalogue ready.')
+          PY
+          rm -rf "$transfer"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A objects/colour-female-06 objects/manifest.json
+          git diff --cached --quiet && { echo 'Nothing to publish.'; exit 0; }
+          git commit -m 'Publish byte-verified Colour Female 06 GLB and mark catalogue ready'
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then exit 0; fi
+            git pull --rebase origin main
+          done
+          echo 'Cannot push verified model after three attempts.' >&2
+          exit 1
