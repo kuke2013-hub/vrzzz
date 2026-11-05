@@ -1,0 +1,81 @@
+name: Publish Colour Female 06 P04 GLB from verified chunks
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'objects/colour-female-06-p04/.transfer/**'
+      - '.github/workflows/assemble-colour-female-06-p04.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project without altering shared Quest controls
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Reconstruct and verify the uploaded source GLB
+        shell: bash
+        run: |
+          set -euo pipefail
+          target='objects/colour-female-06-p04'
+          model="$target/assets/colour-female-06-p04.glb"
+          if [[ ! -f "$target/.transfer/part001.b64" ]]; then
+            echo 'Transfer already consumed; no action needed.'
+            exit 0
+          fi
+          test ! -e "$model" || { echo 'Model already present: avoid overwriting'; exit 1; }
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for i in $(seq -f '%03g' 1 21); do
+            test -s "$target/.transfer/part$i.b64"
+            cat "$target/.transfer/part$i.b64" >> "$tmp/model.b64"
+          done
+          base64 --decode "$tmp/model.b64" > "$tmp/model.xz"
+          test "$(wc -c < "$tmp/model.xz" | tr -d ' ')" = '4024260'
+          printf '%s  %s\n' 'd5eff6dc3ddb55c00a045dd3b87342e644304afa0dff2988dd649989ba398945' "$tmp/model.xz" | sha256sum --check
+          xz --decompress --stdout "$tmp/model.xz" > "$model"
+          test "$(wc -c < "$model" | tr -d ' ')" = '6531100'
+          printf '%s  %s\n' '2053b2af3af09405496387b37b5ff3c3fb41bda5fc6dba1c0160b7c43211cfd0' "$model" | sha256sum --check
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct,json
+          model=Path('objects/colour-female-06-p04/assets/colour-female-06-p04.glb')
+          b=model.read_bytes()
+          assert struct.unpack_from('<4sII',b,0)==(b'glTF',2,len(b))
+          n,kind=struct.unpack_from('<I4s',b,12)
+          assert kind==b'JSON'
+          d=json.loads(b[20:20+n])
+          assert len(d['meshes'])==1 and len(d['materials'])==1
+          assert len(d['images'])==1 and d['images'][0]['mimeType']=='image/jpeg'
+          p=d['meshes'][0]['primitives'][0]
+          assert 'POSITION' in p['attributes'] and 'TEXCOORD_0' in p['attributes']
+          assert d['accessors'][p['indices']]['count']==855036
+          assert d['accessors'][p['attributes']['POSITION']]['count']==146853
+          manifest=Path('objects/manifest.json')
+          m=json.loads(manifest.read_text())
+          matches=[o for o in m['objects'] if o.get('id')=='colour-female-06-p04']
+          assert len(matches)==1
+          assert matches[0]['status']=='pending-model-upload'
+          matches[0]['status']='ready'
+          matches[0]['description']='A textured female scan in Quest 3 passthrough, using the shared Zelda v13 controller engine.'
+          manifest.write_text(json.dumps(m,ensure_ascii=False,indent=2)+'\n')
+          print('Validated GLB structure, 285012 triangles, embedded texture, catalogue entry')
+          PY
+          rm -rf "$target/.transfer"
+      - name: Commit verified model and mark catalogue ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A objects/colour-female-06-p04/ objects/manifest.json
+          if git diff --cached --quiet; then
+            echo 'No changes to publish.'
+            exit 0
+          fi
+          git commit -m 'Publish SHA256-verified Colour Female 06 P04 GLB'
+          git pull --rebase origin main
+          git push origin HEAD:main
